@@ -1,0 +1,7 @@
+# Local Worker secrets for `wrangler dev` / `opennextjs-cloudflare preview`.
+# Copy to .dev.vars (git-ignored). In stage/prod these are `wrangler secret`s
+# set by the deploy lane from orun-managed secrets.
+#
+# This template has none: the tenant store is the KV binding (no Upstash
+# URL/token), and the admin page carries upstream's "add authentication
+# here" TODO rather than a password.
