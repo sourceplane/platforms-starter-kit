@@ -1,0 +1,34 @@
+# The epic's declaration. metadata.name equals the directory name; metadata.key
+# is the task-key prefix this epic reserves (PS → PS-1, PS-2, …). Owner, target
+# date and health are the platform's — never written here.
+apiVersion: orun.io/v1
+kind: Epic
+metadata:
+  name: platforms-starter-kit
+  key: PS
+spec:
+  title: "Vercel's Platforms Starter Kit on Cloudflare Workers, tenants in Workers KV"
+  summary: "The Vercel platforms template — a multi-tenant app where every tenant is a subdomain routed by a Next.js proxy, created from a landing form with an emoji and managed from an admin page, with the tenant records in Upstash Redis — runs on Cloudflare Workers + Static Assets through @opennextjs/cloudflare with Workers KV standing in for Redis behind the same client surface, the namespace provisioned by Terraform through Orun and bound per environment, inside the Cirrus baseline's repository conventions. It is the Cloudflare-only multi-tenant port the coverage analysis ranks first."
+  state: backlog
+  milestones:
+    - name: "PS0 — the spec"
+      exitCriteria:
+        - "the doc set and the task contracts are on main"
+      tasks: [PS-1]
+    - name: "PS1 — the platform on Workers"
+      exitCriteria:
+        - "apps/web is the upstream template, built by `next build` + `opennextjs-cloudflare build`, with lib/redis.ts speaking the Upstash client's surface over the KV binding"
+        - "the wrangler config renders per environment from the cloudflare-kv root's wiring document (fixture in verify, live in deploy)"
+        - "`pnpm typecheck`, `pnpm lint`, `pnpm test` and `pnpm build` are green on main (Checks)"
+        - "`wrangler dev` serves the landing page, answers an unknown tenant host with the not-found page, and a created tenant with its page"
+      tasks: [PS-2]
+    - name: "PS2 — the KV namespace from Terraform"
+      exitCriteria:
+        - "infra/terraform/cloudflare-kv provisions the stage and prod namespaces and publishes their ids as the WIRING_CLOUDFLARE_KV document"
+        - "the app component depends on the root and reads the wiring it needs from it"
+      tasks: [PS-3]
+    - name: "PS3 — ready to instantiate"
+      exitCriteria:
+        - "the README says how to run, test, preview and deploy it through Orun, and what the wildcard domain needs"
+        - "the as-built status records every departure from the upstream template"
+      tasks: [PS-4]

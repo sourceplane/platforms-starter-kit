@@ -1,0 +1,35 @@
+# Epic: platforms-starter-kit (PS)
+
+**Vercel's Platforms Starter Kit is the multi-tenant template: every tenant is a subdomain, a Next.js proxy reads the host and rewrites `acme.yourdomain.com/` to `/s/acme`, a landing form creates tenants with an emoji, an admin page lists and deletes them, and the records live in Upstash Redis under `subdomain:<name>`. Nothing in that shape is Vercel's except where the app runs and where the records live. On Cloudflare the app is an OpenNext Worker + Static Assets with the proxy inside it, and the records are in Workers KV behind a module that keeps the Upstash client's surface — `redis.get / set / del / keys / mget`, the same keys, the same JSON — so the template's data access and server actions stay as written. The namespace comes from Terraform through Orun and is bound per environment through the wiring document, the way the Cirrus baseline binds its own KV.**
+
+The upstream code stays the code: the proxy, the pages, the server actions, `lib/subdomains.ts`, the shadcn components and the emoji picker. The port adds the Workers build, the monorepo wrapper, the KV adapter, a test package that exercises the adapter over a fake namespace and the proxy's routing decisions, the KV Terraform root and the deploy contract. The wildcard hostname tenants need is a zone matter (a wildcard record and a Worker route, or Cloudflare for SaaS) and is documented, not provisioned.
+
+## Status
+
+| Field | Value |
+|-------|-------|
+| Status | Draft |
+| Cluster | **PS** (PS0–PS3) |
+| Owner(s) | `apps/web` (the app) · `tests/web` (adapter and proxy tests) · `infra/terraform/cloudflare-kv` (the namespace) |
+| Builds on | `cirrus-baseline` conventions — the `cloudflare-kv` Terraform root and the `@@wiring(...)@@` per-environment render; intent, components, `checks.yml` gate, gated `ci.yml` |
+| Upstream | [vercel/platforms](https://github.com/vercel/platforms) |
+| Changes | Adds the Workers build, the monorepo wrapper, `lib/redis.ts` over KV, tests, the KV root and the deploy contract; swaps Vercel Speed Insights for the Cloudflare Web Analytics beacon; makes `/admin` explicitly dynamic |
+| Decisions locked | (1) OpenNext on Workers + Static Assets. (2) Workers KV, not a Durable Object per tenant: the template's store is a key-value map with a prefix scan, and that is what KV is. (3) The adapter keeps the Upstash surface; app code is untouched. (4) `wrangler.jsonc` is rendered per environment from the wiring document; never committed. (5) The root domain is one knob — the environment's `BASE_DOMAIN` in `intent.yaml`, inlined by `next build`. |
+| Gate | PS1 is the first user-visible rung. PS2 needs a workspace with a Cloudflare connection to apply; it is verified by `terraform validate` and `plan`. |
+| Shipped as | |
+
+## Read order
+
+1. `design.md` — what maps to what, the adapter contract, the env/wiring flow, the rejected alternative
+2. `implementation-plan.md` — the milestones and what "done" means for each
+3. `risks-and-open-questions.md` — what could go wrong and what was decided
+4. `IMPLEMENTATION-STATUS.md` — what actually shipped (kept distinct from intent)
+
+## Milestones at a glance
+
+| Milestone | What it lands | Done when |
+|---|---|---|
+| PS0 — the spec | this doc set and the task contracts | merged on `main` |
+| PS1 — the platform on Workers | `apps/web` built by OpenNext with `lib/redis.ts` over KV, rendered wrangler config, `tests/web` | `wrangler dev` serves `/`, 404s an unknown tenant, serves a created one; Checks green |
+| PS2 — the KV namespace from Terraform | `infra/terraform/cloudflare-kv`, the app's `dependsOn` and `secretEnv` | the root validates; the wiring keys match the template's tokens |
+| PS3 — ready to instantiate | README, as-built status | a reader can run, test, preview and deploy it, and knows what the wildcard domain needs |

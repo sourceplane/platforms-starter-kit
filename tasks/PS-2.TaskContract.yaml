@@ -1,0 +1,17 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+spec:
+  goal: The upstream Platforms Starter Kit runs on Cloudflare Workers + Static Assets with tenants in Workers KV behind the Upstash client's surface, a per-environment rendered wrangler config and green checks
+  affects:
+    - apps/web
+    - tests/web
+    - tooling/wire
+    - pnpm-lock.yaml
+    - package.json
+    - turbo.json
+    - .gitignore
+  doneWhen:
+    - pnpm wire:fixture, typecheck, lint, test and build are green in Checks
+    - wrangler dev serves /, 404s an unknown tenant host and serves a created tenant's page
+  gates:
+    - checks
