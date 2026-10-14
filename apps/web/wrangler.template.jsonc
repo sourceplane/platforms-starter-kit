@@ -1,0 +1,26 @@
+// Rendered to wrangler.jsonc (git-ignored) by tooling/wire: the verify lane
+// renders from wiring.fixture.json, the deploy lane from the wiring document
+// the `cloudflare-kv` Terraform root lease-publishes (WIRING_CLOUDFLARE_KV_<ENV>).
+// The workers-assets composition deploys one environment per job with no
+// wrangler `--env`, so `__ENV__` names the environment this config is rendered for.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "platforms-starter-kit-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true },
+  // The tenant store: `subdomain:<name>` → { emoji, createdAt }, read and
+  // written through lib/redis.ts (the Upstash client's surface over KV).
+  // `wrangler dev` binds a local namespace whatever the id says.
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "@@wiring(cloudflare-kv/__ENV__:app_kv_id)@@"
+    }
+  ]
+}

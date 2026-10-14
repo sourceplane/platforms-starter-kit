@@ -1,0 +1,18 @@
+{
+  "extends": "../../tooling/tsconfig/web.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["node", "@cloudflare/workers-types"],
+    // The tests compile the template's own modules (proxy.ts indexes split()
+    // results); hold them to the template's strictness, not the toolchain's.
+    "noUncheckedIndexedAccess": false,
+    "paths": {
+      "@/*": ["../../apps/web/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "../../apps/web/cloudflare-env.d.ts"]
+}

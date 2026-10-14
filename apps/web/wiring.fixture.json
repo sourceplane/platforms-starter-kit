@@ -1,0 +1,10 @@
+{
+  "cloudflare-kv/stage": {
+    "app_kv_id": "00000000000000000000000000000001",
+    "app_kv_title": "stg-platforms-starter-kit-app-kv-stage"
+  },
+  "cloudflare-kv/prod": {
+    "app_kv_id": "00000000000000000000000000000002",
+    "app_kv_title": "prod-platforms-starter-kit-app-kv-prod"
+  }
+}
