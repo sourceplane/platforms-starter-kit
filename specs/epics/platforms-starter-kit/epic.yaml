@@ -9,7 +9,7 @@ metadata:
 spec:
   title: "Vercel's Platforms Starter Kit on Cloudflare Workers, tenants in Workers KV"
   summary: "The Vercel platforms template — a multi-tenant app where every tenant is a subdomain routed by a Next.js proxy, created from a landing form with an emoji and managed from an admin page, with the tenant records in Upstash Redis — runs on Cloudflare Workers + Static Assets through @opennextjs/cloudflare with Workers KV standing in for Redis behind the same client surface, the namespace provisioned by Terraform through Orun and bound per environment, inside the Cirrus baseline's repository conventions. It is the Cloudflare-only multi-tenant port the coverage analysis ranks first."
-  state: backlog
+  state: completed
   milestones:
     - name: "PS0 — the spec"
       exitCriteria:

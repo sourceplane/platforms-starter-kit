@@ -3,7 +3,7 @@
 Milestones land in order; each task is one pull request on an
 `orun/PS-n-<slug>` branch with an `Orun-Task: PS-n` trailer.
 
-## PS0 — the spec
+## PS0 — the spec ✅
 
 This doc set, `epic.yaml` and the task contracts, merged to `main`.
 
@@ -11,7 +11,7 @@ This doc set, `epic.yaml` and the task contracts, merged to `main`.
 - the five documents and `epic.yaml` are on `main`
 - `tasks/PS-1..PS-4.TaskContract.yaml` exist
 
-## PS1 — the platform on Workers
+## PS1 — the platform on Workers ✅
 
 `apps/web` is the upstream template with the Workers build around it and
 `lib/redis.ts` speaking the Upstash surface over the `KV` binding;
@@ -24,7 +24,7 @@ This doc set, `epic.yaml` and the task contracts, merged to `main`.
 - `wrangler dev` answers `/` with the landing page (200), an unknown tenant host (`Host: nope.localhost:3000`) with the not-found page (404), and after a tenant is created through the landing form, `Host: <tenant>.localhost:3000` with the tenant page (200) and `/admin` with it listed
 - `/admin` is built as a dynamic route (`ƒ`), never pre-rendered
 
-## PS2 — the KV namespace from Terraform
+## PS2 — the KV namespace from Terraform ✅
 
 `infra/terraform/cloudflare-kv` provisions a namespace per environment and
 publishes `{app_kv_id, app_kv_title}` as the `WIRING_CLOUDFLARE_KV`
@@ -36,7 +36,7 @@ document; `apps/web/component.yaml` depends on it and declares the
 - the root's wiring keys match the template's tokens (`wire:fixture` renders the same keys)
 - the component's `secretEnv` names match the root's `secretOutputs`
 
-## PS3 — ready to instantiate
+## PS3 — ready to instantiate ✅
 
 README (run, test, preview, deploy, the wildcard domain), `IMPLEMENTATION-STATUS.md`
 with PRs and departures, epic `completed`.

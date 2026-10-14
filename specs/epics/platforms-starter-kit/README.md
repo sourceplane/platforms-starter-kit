@@ -8,7 +8,7 @@ The upstream code stays the code: the proxy, the pages, the server actions, `lib
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | ✅ Shipped — PS0–PS3 landed (#1, #2, #3, #4) |
 | Cluster | **PS** (PS0–PS3) |
 | Owner(s) | `apps/web` (the app) · `tests/web` (adapter and proxy tests) · `infra/terraform/cloudflare-kv` (the namespace) |
 | Builds on | `cirrus-baseline` conventions — the `cloudflare-kv` Terraform root and the `@@wiring(...)@@` per-environment render; intent, components, `checks.yml` gate, gated `ci.yml` |
@@ -16,7 +16,7 @@ The upstream code stays the code: the proxy, the pages, the server actions, `lib
 | Changes | Adds the Workers build, the monorepo wrapper, `lib/redis.ts` over KV, tests, the KV root and the deploy contract; swaps Vercel Speed Insights for the Cloudflare Web Analytics beacon; makes `/admin` explicitly dynamic |
 | Decisions locked | (1) OpenNext on Workers + Static Assets. (2) Workers KV, not a Durable Object per tenant: the template's store is a key-value map with a prefix scan, and that is what KV is. (3) The adapter keeps the Upstash surface; app code is untouched. (4) `wrangler.jsonc` is rendered per environment from the wiring document; never committed. (5) The root domain is one knob — the environment's `BASE_DOMAIN` in `intent.yaml`, inlined by `next build`. |
 | Gate | PS1 is the first user-visible rung. PS2 needs a workspace with a Cloudflare connection to apply; it is verified by `terraform validate` and `plan`. |
-| Shipped as | |
+| Shipped as | `main` after [#4](https://github.com/sourceplane/platforms-starter-kit/pull/4); verified locally under `wrangler dev` with a local KV, `terraform validate` on the root, deploy gated until a workspace is linked |
 
 ## Read order
 
