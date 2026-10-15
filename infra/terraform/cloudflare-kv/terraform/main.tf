@@ -97,11 +97,11 @@ variable "terraformVersion" {
 # TTL is per-PUT, owned by the Worker.
 
 locals {
-  # Brand-namespaced with var.repo so the title is unique to this fork. Cloudflare
-  # KV namespace titles must be unique per account, and this fork shares an account
-  # with the baseline (which uses the un-branded title) — without the brand the
-  # create fails with "a namespace with this account ID and title already exists"
-  # (10014). Workers resolve this KV by ID via the wiring secret, so the title is
+  # Built on var.repo (the product's repository slug) so the title is unique per
+  # product. Cloudflare KV namespace titles must be unique per account, and two
+  # products may share an account — without the slug the second create fails
+  # with "a namespace with this account ID and title already exists" (10014).
+  # The Worker binds this namespace by ID via the wiring secret, so the title is
   # free to change.
   app_kv_namespace_title = "${var.namespacePrefix}${var.repo}-app-kv-${var.environment}"
 }

@@ -9,7 +9,7 @@ This doc set, `epic.yaml` and the task contracts, merged to `main`.
 
 **Done when**
 - the five documents and `epic.yaml` are on `main`
-- `tasks/PS-1..PS-4.TaskContract.yaml` exist
+- `tasks/PS-1..PS-4.TaskContract.yaml` exist (PS-5 joined with PS4)
 
 ## PS1 — the platform on Workers ✅
 
@@ -45,10 +45,45 @@ with PRs and departures, epic `completed`.
 - the README quick start works from a fresh clone
 - the status file lists every PR and departure
 
+## PS4 — a baseline, in one landing ✅
+
+`blueprint.yaml`, `repo-blueprint.yaml` (two phases: `01-product`,
+`02-docs`), `.baseline/` (identity, task contracts, the product's README),
+`tooling/rebrand`, `tooling/bootstrap`, `hooks/render-deployment-docs.sh`,
+`ai/context/`, `docs/phases/`, `BOOTSTRAP.md`, `testing/`, `baseline.yml`
+and `tag.yml` (design §9); and what the product needed to deploy from a
+fresh repository and work there: `wrangler.jsonc` committed, dev rendering
+the fixture, `apps/web`'s enforced `dependsOn: cloudflare-kv` on main,
+`packages/`, and tenants served by path off the root domain
+(`lib/addresses.ts`).
+
+**Done when**
+- orun at the bootstrap floor (v2.58.11), the lane pin (v2.78.4) and the
+  current CLI (v2.79.0) reads `repo-blueprint.yaml`, and
+  `testing/manifest.test.sh` holds the card to it
+- the product's own push-to-main plan applies `cloudflare-kv` before it
+  deploys `web` on stage and prod (`testing/placement.test.sh`)
+- the product, built in the job tree and served by `wrangler dev` off its
+  root domain, creates a tenant through its landing form and serves it at
+  `/s/<tenant>` (`testing/e2e.test.sh`)
+- `Baseline CI` is green: the contract tests, the wiring path, the leak gate,
+  the offline bootstrap and the end-to-end tier
+- the status file records what is proven offline and what only a live
+  bootstrap (or a custom domain) can prove
+
+## After PS4 (outside this repository)
+
+1. Cut `baseline-v1` with `tag.yml` from the merged `main`.
+2. Register the row in orun-cloud's `infra/baselines-registry/baselines.yaml`
+   (unlisted) with the card vendored at the tag.
+3. Bootstrap one product from the tag against a workspace; record its
+   timings; then flip the row to public with a page on orunbase.com.
+
 ## Sequencing note
 
 PS1 and PS2 are independent files but PS1's template already names the
 root's wiring keys, so PS2 is the half that makes those names true.
 Applying PS2 needs a workspace with a Cloudflare connection; until then the
-Orun lane is gated and `Checks` is the merge gate. PS3 is documentation over
-both.
+Orun lane plans nothing (`ws_CHANGE_ME`) and `Checks` is the merge gate. PS3
+is documentation over both. PS4 packages PS1–PS2 as a baseline whose one
+landing applies PS2's root before it deploys PS1's Worker.

@@ -1,90 +1,51 @@
-# Next.js Multi-Tenant Example
+# apps/web — the multi-tenant app
 
-A production-ready example of a multi-tenant application built with Next.js 16, featuring custom subdomains for each tenant.
+A multi-tenant Next.js 16 app from Vercel's Platforms Starter Kit
+([vercel/platforms](https://github.com/vercel/platforms)), running on
+Cloudflare Workers + Static Assets through
+[`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), with the
+tenant records in a **Workers KV** namespace instead of Upstash Redis:
 
-## Features
+- `app/page.tsx` — the landing page: create a tenant with a name and an emoji
+  (`subdomain-form.tsx`, the `createSubdomainAction` server action)
+- `app/s/[subdomain]/page.tsx` — a tenant's page
+- `app/admin` — every tenant, listed and deletable (no authentication, as
+  upstream: put Cloudflare Access in front of `/admin` before you rely on it)
+- `proxy.ts` — `<tenant>.<root domain>/` is rewritten to `/s/<tenant>`
+- `lib/redis.ts` — the Upstash client's `get / set / del / keys / mget` over
+  the `KV` binding, the same `subdomain:<name>` keys and JSON records
+- `lib/addresses.ts` — where a tenant lives, as seen from the request's host
+- `app/site.ts` — the site's name
 
-- ✅ Custom subdomain routing with Next.js proxy
-- ✅ Tenant-specific content and pages
-- ✅ Shared components and layouts across tenants
-- ✅ Redis for tenant data storage
-- ✅ Admin interface for managing tenants
-- ✅ Emoji support for tenant branding
-- ✅ Support for local development with subdomains
-- ✅ Compatible with Vercel preview deployments
+```bash
+pnpm dev        # next dev on http://localhost:3000, a local KV through wrangler's platform proxy
+pnpm build      # next build + opennextjs-cloudflare build → .open-next/
+pnpm preview    # wrangler dev over the built Worker, the same local KV
+```
 
-## Tech Stack
+## Subdomains, and the path they fall back to
 
-- [Next.js 16](https://nextjs.org/) with App Router
-- [React 19](https://react.dev/)
-- [Upstash Redis](https://upstash.com/) for data storage
-- [Tailwind 4](https://tailwindcss.com/) for styling
-- [shadcn/ui](https://ui.shadcn.com/) for the design system
+The root domain tenants hang off is `NEXT_PUBLIC_ROOT_DOMAIN`, inlined at
+build time (`localhost:3000` when unset; on a deploy, the environment's
+`BASE_DOMAIN` in `intent.yaml`). On that domain every tenant is a
+subdomain, `<tenant>.<root>`. A request on any other host — the Worker's
+`workers.dev` address before a custom domain is attached, `wrangler dev` on
+`127.0.0.1` — reaches a tenant by path on that host instead, `/s/<tenant>`:
+the landing form says so, creating a tenant redirects there, and `/admin`
+links there. The same build serves both; nothing needs rebuilding when the
+domain's wildcard route starts pointing at the Worker.
 
-## Getting Started
+Locally, `http://<tenant>.localhost:3000` works under `pnpm dev` (browsers
+resolve `*.localhost` to the loopback address).
 
-### Prerequisites
+## The KV binding
 
-- Node.js 20.9.0 or later
-- pnpm (recommended) or npm/yarn
-- Upstash Redis account (for production)
+The binding's namespace id is not hand-written. `wrangler.template.jsonc`
+names it as a wiring token; `wrangler.jsonc` is that template rendered from
+`wiring.fixture.json` (placeholder ids, for local work and verification),
+and every deploy renders it again from the id the `cloudflare-kv` Terraform
+root published for the environment (`component.yaml`'s `buildCommand`).
 
-### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/vercel/platforms.git
-   cd platforms
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   pnpm install
-   ```
-
-3. Set up environment variables:
-   Create a `.env.local` file in the root directory with:
-
-   ```
-   KV_REST_API_URL=your_redis_url
-   KV_REST_API_TOKEN=your_redis_token
-   ```
-
-4. Start the development server:
-
-   ```bash
-   pnpm dev
-   ```
-
-5. Access the application:
-   - Main site: http://localhost:3000
-   - Admin panel: http://localhost:3000/admin
-   - Tenants: http://[tenant-name].localhost:3000
-
-## Multi-Tenant Architecture
-
-This application demonstrates a subdomain-based multi-tenant architecture where:
-
-- Each tenant gets their own subdomain (`tenant.yourdomain.com`)
-- The proxy handles routing requests to the correct tenant
-- Tenant data is stored in Redis using a `subdomain:{name}` key pattern
-- The main domain hosts the landing page and admin interface
-- Subdomains are dynamically mapped to tenant-specific content
-
-The proxy (`proxy.ts`, the Next.js 16 replacement for `middleware.ts`) intelligently detects subdomains across various environments (local development, production, and Vercel preview deployments).
-
-## Deployment
-
-This application is designed to be deployed on Vercel. To deploy:
-
-1. Push your repository to GitHub
-2. Connect your repository to Vercel
-3. Configure environment variables
-4. Deploy
-
-For custom domains, make sure to:
-
-1. Add your root domain to Vercel
-2. Set up a wildcard DNS record (`*.yourdomain.com`) on Vercel
+KV is eventually consistent across locations: a tenant created in one place
+reads back at once there and within about a minute everywhere else. The
+create → redirect → tenant page flow reads where it wrote.

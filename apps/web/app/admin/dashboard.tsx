@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { deleteSubdomainAction } from '@/app/actions';
-import { rootDomain, protocol } from '@/lib/utils';
+import { homeUrl, siteAddress, tenantUrl } from '@/lib/addresses';
 
 type Tenant = {
   subdomain: string;
@@ -19,7 +19,7 @@ type DeleteState = {
   success?: string;
 };
 
-function DashboardHeader() {
+function DashboardHeader({ host }: { host: string | null }) {
   // TODO: You can add authentication here with your preferred auth provider
 
   return (
@@ -27,10 +27,10 @@ function DashboardHeader() {
       <h1 className="text-3xl font-bold">Subdomain Management</h1>
       <div className="flex items-center gap-4">
         <Link
-          href={`${protocol}://${rootDomain}`}
+          href={homeUrl(host)}
           className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
         >
-          {rootDomain}
+          {siteAddress(host)}
         </Link>
       </div>
     </div>
@@ -39,10 +39,12 @@ function DashboardHeader() {
 
 function TenantGrid({
   tenants,
+  host,
   action,
   isPending
 }: {
   tenants: Tenant[];
+  host: string | null;
   action: (formData: FormData) => void;
   isPending: boolean;
 }) {
@@ -94,7 +96,7 @@ function TenantGrid({
             </div>
             <div className="mt-4">
               <a
-                href={`${protocol}://${tenant.subdomain}.${rootDomain}`}
+                href={tenantUrl(tenant.subdomain, host)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-500 hover:underline text-sm"
@@ -109,7 +111,13 @@ function TenantGrid({
   );
 }
 
-export function AdminDashboard({ tenants }: { tenants: Tenant[] }) {
+export function AdminDashboard({
+  tenants,
+  host
+}: {
+  tenants: Tenant[];
+  host: string | null;
+}) {
   const [state, action, isPending] = useActionState<DeleteState, FormData>(
     deleteSubdomainAction,
     {}
@@ -117,8 +125,13 @@ export function AdminDashboard({ tenants }: { tenants: Tenant[] }) {
 
   return (
     <div className="space-y-6 relative p-4 md:p-8">
-      <DashboardHeader />
-      <TenantGrid tenants={tenants} action={action} isPending={isPending} />
+      <DashboardHeader host={host} />
+      <TenantGrid
+        tenants={tenants}
+        host={host}
+        action={action}
+        isPending={isPending}
+      />
 
       {state.error && (
         <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-md">

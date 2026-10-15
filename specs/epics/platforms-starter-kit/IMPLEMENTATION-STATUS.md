@@ -9,6 +9,7 @@ the code departed from `design.md` or from the upstream template.
 | PS1 — the platform on Workers | ✅ Shipped | [#2](https://github.com/sourceplane/platforms-starter-kit/pull/2) |
 | PS2 — the KV namespace from Terraform | ✅ Shipped | [#3](https://github.com/sourceplane/platforms-starter-kit/pull/3) |
 | PS3 — ready to instantiate | ✅ Shipped | [#4](https://github.com/sourceplane/platforms-starter-kit/pull/4) |
+| PS4 — a baseline, in one landing | ✅ Shipped (offline-proven; no live bootstrap yet, risk PS-K) | this PR (PS-5), to be tagged `baseline-v1` |
 
 ## Departures from the upstream template
 
@@ -19,8 +20,8 @@ from `@upstash/redis`. Here: an object with `get / set / del / keys / mget`
 over `getCloudflareContext().env.KV`, the same `subdomain:<name>` keys and
 JSON records. `keys()` accepts only `<prefix>*` (KV lists by prefix) and
 follows the list cursor; `mget` is `get` per key. `@upstash/redis` is gone
-from the dependencies. `lib/subdomains.ts` and `app/actions.ts` are
-byte-for-byte upstream.
+from the dependencies. `lib/subdomains.ts` is byte-for-byte upstream, and
+so was `app/actions.ts` until PS4 changed its redirect target (below).
 
 ### `export const dynamic = 'force-dynamic'` on `app/admin/page.tsx`
 
@@ -84,7 +85,107 @@ idempotency namespace). This repository's root emits `app_kv_id` /
 `app_kv_title`, the names `wrangler.template.jsonc` and `wiring.fixture.json`
 use, and its comments and locals speak of the tenant store.
 
-## Verified
+### Off the root domain a tenant is `/s/<tenant>` on the request's host (PS4)
+
+Upstream links, redirects to and names every tenant as
+`<tenant>.<NEXT_PUBLIC_ROOT_DOMAIN>`. A deploy with no custom domain answers
+on workers.dev, where that host does not resolve: the form created a tenant
+and redirected nowhere. `lib/addresses.ts` (new) decides per request from the
+`Host`: on the root domain, upstream's subdomain; anywhere else, `/s/<tenant>`
+on the same host. `createSubdomainAction` redirects with it; `/admin`, the
+tenant page and the not-found page link with it; the landing form shows a
+`/s/` prefix and the full address off the root domain, plus a line saying
+subdomains wait for the domain's wildcard route; the tenant page's heading
+and title name the address it was reached at. `app/page.tsx` reads the host,
+so `/` renders per request (`ƒ /`, was `○ /`). `proxy.ts`,
+`lib/subdomains.ts` and `lib/redis.ts` are unchanged.
+
+### `app/not-found.tsx` reads `/s/<tenant>`, not `/subdomain/<tenant>` (PS4)
+
+Upstream's not-found page looked for a tenant name under `/subdomain/`, a
+path the template no longer has; under `/s/` it now names the missing
+tenant, and its link goes to this host's `/` off the root domain.
+
+### The site's name comes from `app/site.ts` (PS4)
+
+`SITE_NAME` is the `<title>` (was the literal "Platforms Starter Kit") and a
+label above the landing page's heading (new; the heading stays the
+domain — or, off it, the host). It is the one seam the product's rename
+rewrites.
+
+### `apps/web/README.md` is the app's, not the template's (PS4)
+
+The upstream README advertised Upstash, `KV_REST_API_*` and "Deploy on
+Vercel", and it ships into every product.
+
+## Departures from the port (PS4)
+
+| What | Before | After | Why |
+|---|---|---|---|
+| tenant links off the root domain | `<tenant>.<root>` everywhere (unreachable on workers.dev) | `/s/<tenant>` on the request's host (`lib/addresses.ts`) | a fresh deploy has no custom domain (risk PS-D) |
+| `apps/web/wrangler.jsonc` | git-ignored, rendered by the build | committed as the fixture render, GENERATED banner; Checks diffs it | the deploy lane checks it exists before the build (risk PS-I) |
+| dev's render | `live.mjs --env dev` → no document → red | `--fixture wiring.fixture.json --fixture-envs dev`; the fixture has a `dev` entry | dev is verify-only; no root applies there (PS-J) |
+| `apps/web` → `cloudflare-kv` | `dependsOn` in the default mode | `mode: enforced`, `modeRules` advisory on `github-pull-request` | the one landing's order on main; a PR deploys nothing (cirrus-baseline v22's shape) |
+| `apps/web` smoke | `grep 'Create your own subdomain…'` (a static prerender passed it) | `/` names `<host>/s/` for the host asked on, and `/admin` answers | only a Worker rendering per request, and reading its KV, passes |
+| stage's `BASE_DOMAIN` | the product domain, as prod | `stage.<domain>` | stage and prod never claim the same tenant hostnames once routed |
+| `ci.yml` gate | `vars.ORUN_CI == 'true'` | skip only while `intent.yaml` names `ws_CHANGE_ME` | a bootstrap cannot set a repository variable |
+| `checks.yml` | push to main + PRs | PRs + `workflow_dispatch` | `orun.run/watch@v1` takes the newest run on the merge sha from ANY workflow |
+| stack-tectonic | 0.18.2 | 0.19.0 | first-deploy retry and smoke backoff; not 0.20.0, whose lane-scoped install Next 16's Turbopack refuses |
+| orun lane pin | v2.78.0 | v2.78.4 | cirrus-baseline's and the sibling baselines' pin |
+| `packages/` | absent — `orun plan` failed: `failed to access discovery root packages` | `packages/.gitkeep` | the discovery roots are required |
+| `intent.yaml` docs pages | `specs/epics/…` | `ai/context/*` | the pages must exist in a product |
+| the KV root's title comment | "unique to this fork … shares an account with the baseline" | per product slug | it ships into every product |
+| `tooling/wire/render.mjs` | copied the template's header comment | writes a GENERATED banner | the committed render must say it is one |
+| `tasks/PS-1..4` | no `metadata` | `metadata.name` and `title` | `orun work check` (≥ v2.79) refused them |
+
+## Verified (PS4)
+
+- `orun new --status` reads the blueprint at v2.58.11 (the bootstrap floor),
+  v2.78.4 (the lane pin) and v2.79.0: `01-product` 84 files, `02-docs`
+  hook-only. `orun validate` and `orun work check` clean (1 epic, 5
+  contracts).
+- `pnpm install --frozen-lockfile`, `wire:fixture` (the committed config is
+  its render), typecheck, lint (upstream's two `any` warnings), test (28
+  tests, 6 files: + `lib/addresses.ts`, `app/site.ts`), build (`ƒ /`,
+  `○ /_not-found`, `ƒ /admin`, `ƒ /s/[subdomain]`).
+- `testing/{manifest,phases,coverage,rebrand,retouch,bootstrap-defer,wire}.test.sh`
+  green.
+- `testing/leak.test.sh` (v2.79.0 and v2.58.11): 84 files derived; nothing
+  of the factory, nothing local or built, no provenance prose; 78 shipped
+  sources name no factory path.
+- `testing/placement.test.sh` (fixture "Sam's Tenants & Co" /
+  `acme-inc/acme-platforms`, root domain `tenants.acme.dev`): two landings;
+  rebrand `--verify` clean; the app, the Worker, the KV titles, the root
+  domains (`tenants.acme.dev`, `stage.tenants.acme.dev`) and every secret
+  ref the product's; no file names a factory path; workspace re-tenanted,
+  `work:` stripped, promotion and dev lanes restored; record rendered. The
+  product's own `orun plan --trigger github-push-main` for the 01-product
+  merge: `cloudflare-kv.{stage,prod}.terraform` (apply) at lane level 0,
+  `web.{stage,prod}.verify-deploy` (deploy) at level 1, each waiting on its
+  own environment's apply alone, building with that environment's
+  `BASE_DOMAIN`; on a pull request `web` waits on nothing; the 02-docs merge
+  plans 0 jobs; `--resume` changes nothing. Green under v2.78.4 and v2.79.0;
+  refused under v2.58.11 (risk PS-L).
+- `testing/e2e.test.sh` (v2.78.4): the 01-product landing passes the Checks
+  sequence; in the job tree staged as orun stages it, the stage lane's
+  `verify-app-structure`, `build-app` (the live render from a stage document
+  in the job's environment, the build with `BASE_DOMAIN=stage.tenants.acme.dev`),
+  `verify-build-output` and `deploy-dry-run` pass, binding `KV` to the
+  document's id; `wrangler dev` serves the built Worker; the component's own
+  smoke passes; `/` carries the product's name and offers tenants at
+  `<host>/s/<name>`; a tenant is created through the landing form as a
+  browser without JavaScript submits it (303 → `/s/acme-e2e`), read back on
+  its page, on `/admin` and by a refused duplicate, served as
+  `acme-e2e.stage.tenants.acme.dev` by Host header, kept off `/admin` on its
+  host; unknown tenants and paths are 404s; assets serve; deleted from
+  `/admin`, it is gone.
+- `terraform init -backend=false && terraform validate` green on
+  `infra/terraform/cloudflare-kv` (1.15.3). A plan needs the account (the
+  adoption lookup calls the Cloudflare API).
+- Not verified: a live bootstrap against a workspace, and tenant subdomains
+  on a real zone (risk PS-K).
+
+## Verified (PS1–PS3)
 
 - Local: `pnpm run wire:fixture`, `pnpm typecheck`, `pnpm lint` (two
   upstream `any` warnings, no errors), `pnpm test` (19 tests: the adapter

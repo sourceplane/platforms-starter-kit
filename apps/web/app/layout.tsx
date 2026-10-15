@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
 import { CloudflareWebAnalytics } from '@/components/analytics';
+import { SITE_NAME } from './site';
 import './globals.css';
 
 const geistSans = Geist({
@@ -9,7 +10,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: 'Platforms Starter Kit',
+  title: SITE_NAME,
   description: 'Next.js template for building a multi-tenant SaaS.'
 };
 

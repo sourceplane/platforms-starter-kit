@@ -30,7 +30,42 @@ type CreateState = {
   icon?: string;
 };
 
-function SubdomainInput({ defaultValue }: { defaultValue?: string }) {
+// On the root domain a tenant is `<name>.<root>`, as upstream shows it. Off
+// it (workers.dev, before a custom domain) a tenant is `<host>/s/<name>`, and
+// `pathBase` is that `<host>/s/` (lib/addresses.ts).
+function SubdomainInput({
+  defaultValue,
+  pathBase
+}: {
+  defaultValue?: string;
+  pathBase?: string | null;
+}) {
+  if (pathBase) {
+    return (
+      <div className="space-y-2">
+        <Label htmlFor="subdomain">Subdomain</Label>
+        <div className="flex items-center">
+          <span className="bg-gray-100 px-3 border border-r-0 border-input rounded-l-md text-gray-500 min-h-[36px] flex items-center">
+            /s/
+          </span>
+          <div className="relative flex-1">
+            <Input
+              id="subdomain"
+              name="subdomain"
+              placeholder="your-subdomain"
+              defaultValue={defaultValue}
+              className="w-full rounded-l-none focus:z-10"
+              required
+            />
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 break-all">
+          {`Opens at ${pathBase}your-subdomain`}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <Label htmlFor="subdomain">Subdomain</Label>
@@ -124,7 +159,7 @@ function IconPicker({
   );
 }
 
-export function SubdomainForm() {
+export function SubdomainForm({ pathBase }: { pathBase?: string | null }) {
   const [icon, setIcon] = useState('');
 
   const [state, action, isPending] = useActionState<CreateState, FormData>(
@@ -134,7 +169,7 @@ export function SubdomainForm() {
 
   return (
     <form action={action} className="space-y-4">
-      <SubdomainInput defaultValue={state?.subdomain} />
+      <SubdomainInput defaultValue={state?.subdomain} pathBase={pathBase} />
 
       <IconPicker icon={icon} setIcon={setIcon} defaultValue={state?.icon} />
 

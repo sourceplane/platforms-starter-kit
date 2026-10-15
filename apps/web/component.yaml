@@ -12,10 +12,19 @@ spec:
   # Its own lane per environment: the Next.js build is the longest job in the
   # plan, and a shared lane would wait on it.
   lane: isolated
-  # The KV namespace must exist before this deploys: its id is rendered into
-  # wrangler.jsonc from the root's wiring document (the `KV` binding).
+  # INFRA BEFORE APP. The Worker binds the tenant store (`KV`) by namespace
+  # id, and the id is rendered into its config during the build from the
+  # wiring document the cloudflare-kv root lease-publishes after its apply. A
+  # job resolves its secrets when it STARTS, so on a merge to main this deploy
+  # waits for that environment's apply (enforced) and the document is there;
+  # a pull request deploys nothing, so nothing on one waits (advisory).
   dependsOn:
     - component: cloudflare-kv
+      mode: enforced
+      modeRules:
+        - mode: advisory
+          when:
+            triggerRef: github-pull-request
   secretEnv:
     WIRING_CLOUDFLARE_KV_STAGE: "secret://platforms-starter-kit/platforms-starter-kit/stage/WIRING_CLOUDFLARE_KV"
     WIRING_CLOUDFLARE_KV_PROD: "secret://platforms-starter-kit/platforms-starter-kit/prod/WIRING_CLOUDFLARE_KV"
@@ -59,18 +68,30 @@ spec:
     workersDevSubdomain: your-workers-subdomain
 
     installCommand: pnpm install --frozen-lockfile
-    # Render this environment's wrangler config from the KV root's wiring
-    # document (the verify lane already rendered from the fixture through
-    # `wire:fixture`; a deploy lane re-renders with the real namespace id),
-    # then build. The root domain tenants hang off is the environment's
-    # BASE_DOMAIN (intent.yaml); `next build` inlines it as
-    # NEXT_PUBLIC_ROOT_DOMAIN into the server and client bundles.
-    buildCommand: node ../../tooling/wire/live.mjs --template wrangler.template.jsonc --out wrangler.jsonc --components cloudflare-kv --env "${ORUN_ENVIRONMENT}" && NEXT_PUBLIC_ROOT_DOMAIN="${BASE_DOMAIN}" pnpm exec turbo run build --filter=@app/web
+    # Render this environment's wrangler config, then build. stage and prod
+    # render from the wiring document their cloudflare-kv apply published
+    # (secretEnv above, resolved before the job's first step); dev, which no
+    # root applies to and which only verifies, renders from the committed
+    # fixture. The committed wrangler.jsonc (the fixture render) is what the
+    # composition's verify-app-structure step finds before this runs.
+    #
+    # The root domain tenants hang off is the environment's BASE_DOMAIN
+    # (intent.yaml); `next build` inlines it as NEXT_PUBLIC_ROOT_DOMAIN into
+    # the server and client bundles. It needs no DNS to build: until the
+    # domain's wildcard route points at the Worker, requests arrive on
+    # workers.dev and tenants are served at /s/<tenant> (lib/addresses.ts).
+    buildCommand: node ../../tooling/wire/live.mjs --template wrangler.template.jsonc --out wrangler.jsonc --components cloudflare-kv --env "${ORUN_ENVIRONMENT}" --fixture wiring.fixture.json --fixture-envs dev && NEXT_PUBLIC_ROOT_DOMAIN="${BASE_DOMAIN}" pnpm exec turbo run build --filter=@app/web
 
-    # Smoke: the landing page renders (the workers.dev host is not a tenant
-    # subdomain of BASE_DOMAIN, so the proxy serves the root) and carries the
-    # template's call to action.
-    smokeCommand: "html=$(curl -sfL \"${DEPLOYED_URL}/\") && echo \"${html}\" | grep -q 'Create your own subdomain with a custom emoji'"
+    # Smoke, twice over, neither on the site's name (the owner's to change):
+    #   - `/` names the host it was asked on in its tenant addresses
+    #     (`<host>/s/…`, the workers.dev fallback) — a page only the Worker,
+    #     rendering per request, can produce;
+    #   - `/admin` answers: it lists the tenants from the KV binding on every
+    #     request, so a Worker that cannot reach its namespace fails it.
+    # The response is buffered before grep so an early match cannot SIGPIPE
+    # curl. A gate in front of /admin (Cloudflare Access) is the owner's
+    # call; add one and this second check goes with it.
+    smokeCommand: "host=\"${DEPLOYED_URL#*://}\" && html=$(curl -sfL \"${DEPLOYED_URL}/\") && echo \"${html}\" | grep -qF \"${host}/s/\" && curl -sf -o /dev/null \"${DEPLOYED_URL}/admin\""
   labels:
     team: platform
     layer: delivery

@@ -3,8 +3,9 @@
 import { redis } from '@/lib/redis';
 import { isValidIcon } from '@/lib/subdomains';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { rootDomain, protocol } from '@/lib/utils';
+import { requestHost, tenantUrl } from '@/lib/addresses';
 
 export async function createSubdomainAction(
   prevState: any,
@@ -55,7 +56,10 @@ export async function createSubdomainAction(
     createdAt: Date.now()
   });
 
-  redirect(`${protocol}://${sanitizedSubdomain}.${rootDomain}`);
+  // To the tenant's subdomain on the root domain; on any other host (a
+  // workers.dev deploy before its custom domain) to /s/<tenant> on the same
+  // host, where the tenant page answers today (lib/addresses.ts).
+  redirect(tenantUrl(sanitizedSubdomain, requestHost(await headers())));
 }
 
 export async function deleteSubdomainAction(
