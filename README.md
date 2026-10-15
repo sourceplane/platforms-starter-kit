@@ -5,30 +5,76 @@ multi-tenant app where every tenant is a subdomain (`acme.yourdomain.com`),
 created from a landing form with an emoji, listed and deleted from `/admin` —
 running on **Cloudflare Workers + Static Assets** through
 [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), with the
-tenant records in **Workers KV** instead of Upstash Redis, inside the
-repository conventions of the
-[Cirrus baseline](https://github.com/sourceplane/cirrus-baseline): an
-[Orun](https://github.com/sourceplane/orun) intent, one component per
-deployable, a credential-free check lane as the merge gate, an Orun lane
-that turns on once the product is linked to a workspace, and the KV
-namespace provisioned by Terraform through Orun.
+tenant records in a **Workers KV** namespace provisioned by Terraform through
+[Orun](https://github.com/sourceplane/orun), and packaged as an **Orun
+baseline**: one command takes a new product from nothing to live on stage
+and prod, in its own repository, under its own name — in ONE landing.
 
-The template's code is the code. What the port adds is the Workers build,
-the monorepo wrapper, a KV-backed `lib/redis.ts` with the Upstash client's
-surface, a test package, the KV Terraform root and the deploy contract that
-binds the namespace per environment. See
+The template's code is the code; the store is KV behind the Upstash client's
+surface instead of Redis, and a tenant is served by path (`/s/<tenant>`) on
+any host that is not its root domain, so a fresh deploy works on workers.dev
+before a custom domain exists. What the baseline adds is everything needed
+to make a copy of it somebody else's, built the way
+[cirrus-baseline](https://github.com/sourceplane/cirrus-baseline) is since
+its one-landing bootstrap. See
 [`specs/epics/platforms-starter-kit`](specs/epics/platforms-starter-kit/README.md)
 for the design, the milestones and the as-built status.
 
-## What is here
+## Instantiating a product
+
+```bash
+git clone --depth 1 --branch <baseline-tag> https://github.com/sourceplane/platforms-starter-kit
+cd platforms-starter-kit
+orun new --blueprint repo-blueprint.yaml --out ~/sites/acme-tenants --run-hooks --resume \
+  --set reponame=acme-tenants --set productname="Acme Tenants" --set productdomain=tenants.acme.dev \
+  --set githuborg=acme-inc --set subdomain=<workers-dev-subdomain>
+```
+
+Or, once the platform's registry lists it, from the Orun console (Baselines →
+`platforms-starter-kit` → Build). Two phases: **`01-product`** creates the
+repository and lands the whole product as ONE pull request — intent, CI,
+tooling, the KV root, the app and its tests — and one convergence applies
+the KV namespace on stage and prod and then deploys the app with its id;
+**`02-docs`** records the live deployment from probed facts.
+**[BOOTSTRAP.md](BOOTSTRAP.md)** is the operator guide;
+[docs/phases/](docs/phases/README.md) has a page per phase.
+
+The new repository receives the **product only** — the app, its KV root, its
+tests, its CI, its tooling, a README of its own and its operating contract —
+renamed throughout to the product's name, repository, Cloudflare Worker,
+namespace titles and root domain. None of this repository's machinery ships.
+
+It goes live on workers.dev: the landing page, creating a tenant, the
+tenant's page at `/s/<tenant>` and `/admin` all work there. Tenant
+SUBDOMAINS need the product's root domain (`productdomain`) on a Cloudflare
+zone with a wildcard route to the Worker — the owner's step after the
+bootstrap, described in the product's README; nothing in the repository
+changes for it.
+
+| What makes it a baseline | Where |
+|---|---|
+| The console card (inputs, secrets, programme) | `blueprint.yaml` |
+| The build document (modules, phases, hooks) | `repo-blueprint.yaml` |
+| This tree's identity, and the bootstrap's task contracts | `.baseline/` |
+| The rename engine | `tooling/rebrand/rebrand.mjs` |
+| The bootstrap's helpers (deferrals, redeploy marker, work-tree strip) | `tooling/bootstrap/` |
+| The deployment-record renderer | `hooks/render-deployment-docs.sh` |
+| The product's README and context pack | `.baseline/product/README.md`, `ai/context/` |
+| The baseline's tests: contract, wiring, leak, offline bootstrap, end to end | `testing/`, `.github/workflows/baseline.yml` |
+| Cutting a `baseline-vN` tag | `.github/workflows/tag.yml` |
+
+## What is here (the product)
 
 | Surface | Where |
 |---|---|
-| Landing (create a subdomain), `/admin`, the tenant page `/s/[subdomain]`, not-found | `apps/web/app` |
+| Landing (create a tenant), `/admin`, the tenant page `/s/[subdomain]`, not-found | `apps/web/app` |
+| The site's name | `apps/web/app/site.ts` |
 | Subdomain routing (`<tenant>.<root>` → `/s/<tenant>`) | `apps/web/proxy.ts` |
+| Where a tenant lives from a given host (subdomain on the root domain, `/s/<tenant>` elsewhere) | `apps/web/lib/addresses.ts` |
 | Tenant store: the Upstash `redis` surface over Workers KV | `apps/web/lib/redis.ts`, `apps/web/lib/subdomains.ts` |
-| Workers build and deploy contract | `apps/web/next.config.ts`, `apps/web/open-next.config.ts`, `apps/web/wrangler.template.jsonc`, `apps/web/component.yaml` |
+| Workers build, bindings and deploy contract | `apps/web/next.config.ts`, `open-next.config.ts`, `wrangler.template.jsonc` + `wiring.fixture.json` (→ the committed `wrangler.jsonc`), `component.yaml` |
 | The KV namespace (stage, prod) | `infra/terraform/cloudflare-kv` |
+| The wrangler renderer | `tooling/wire` |
 | Tests | `tests/web` (vitest) |
 
 ## Getting started
@@ -42,18 +88,14 @@ pnpm test
 pnpm build              # next build + opennextjs-cloudflare build → apps/web/.open-next
 ```
 
-Run it locally — both paths get a local KV namespace from wrangler, no
-account needed:
-
 ```bash
-pnpm --filter @app/web dev        # http://localhost:3000, Next's dev server (KV through initOpenNextCloudflareForDev)
-pnpm --filter @app/web preview    # wrangler dev over the built Worker
+pnpm --filter @app/web dev        # http://localhost:3000, tenants at http://<tenant>.localhost:3000
+pnpm --filter @app/web preview    # wrangler dev over the built Worker, tenants at /s/<tenant>
 ```
 
-Create a tenant on the landing page, then open `http://<tenant>.localhost:3000`
-(browsers resolve `*.localhost` to the loopback address); `/admin` lists and
-deletes tenants. The root domain is `NEXT_PUBLIC_ROOT_DOMAIN`
-(`localhost:3000` when unset; see `apps/web/.env.example`).
+Both get a local KV namespace from wrangler, no account needed. The root
+domain is `NEXT_PUBLIC_ROOT_DOMAIN` (`localhost:3000` when unset; see
+`apps/web/.env.example`).
 
 ## How it maps to Vercel
 
@@ -63,38 +105,36 @@ deletes tenants. The root domain is `NEXT_PUBLIC_ROOT_DOMAIN`
 | Upstash Redis (`@upstash/redis`, `KV_REST_API_URL` / `KV_REST_API_TOKEN`) | Workers KV: `lib/redis.ts` exports the same `redis.get / set / del / keys / mget` over the `KV` binding (`getCloudflareContext()`), same `subdomain:<name>` keys, same JSON records |
 | Project env vars in the dashboard | `NEXT_PUBLIC_ROOT_DOMAIN` is set at build time by the Orun lane from the environment's `BASE_DOMAIN` in `intent.yaml` (inlined by `next build`) |
 | A Redis database created by hand | `infra/terraform/cloudflare-kv`: one namespace per environment, its id published as a wiring document the deploy renders into `wrangler.jsonc` |
-| Wildcard domain on Vercel (`*.yourdomain.com`) | A wildcard DNS record and a Worker route (or Cloudflare for SaaS custom hostnames) on a zone you own — see below |
-| Deploy on push | Orun deploys `platforms-starter-kit-web-{stage,prod}` on merge to `main` (`apps/web/component.yaml`) |
+| Wildcard domain on Vercel (`*.yourdomain.com`) | A wildcard DNS record and a Worker route on a zone you own (the product README's "Tenant subdomains"); before it, `/s/<tenant>` on workers.dev |
+| Deploy on push | Orun applies the namespace and deploys `<repo>-web-{stage,prod}` on merge to `main` (`apps/web/component.yaml`) |
+| "Deploy with Vercel" (clone the template) | `orun new --blueprint repo-blueprint.yaml` — a new repository, branded, deployed |
 
 There are no secrets: the KV namespace is a binding, and the template's
-admin page has no authentication (upstream's `TODO`). `.dev.vars.example`
-is empty on purpose.
+admin page has no authentication (upstream's `TODO`; Cloudflare Access in
+front of `/admin` is the zero-code gate). `.dev.vars.example` is empty on
+purpose.
 
-## The wildcard domain
+## How the namespace id reaches the Worker
 
-Tenants live at `<tenant>.<NEXT_PUBLIC_ROOT_DOMAIN>`. A `workers.dev`
-hostname cannot carry that (`acme.platforms-starter-kit-web-prod.<sub>.workers.dev`
-does not resolve), so a deployed environment needs a zone in the Cloudflare
-account:
+```
+infra/terraform/cloudflare-kv ──apply──► orun secret WIRING_CLOUDFLARE_KV (stage, prod)
+                                               │   (the landing's await checks it exists)
+                                               ▼
+apps/web  dependsOn cloudflare-kv (enforced on main) · secretEnv WIRING_CLOUDFLARE_KV_<ENV>
+  build:  tooling/wire/live.mjs → wrangler.jsonc with the environment's namespace id
+          (dev, verify-only, renders the fixture) → next build (BASE_DOMAIN) → opennextjs-cloudflare
+```
 
-1. Set the environment's `env.BASE_DOMAIN` in `intent.yaml` to the root
-   domain tenants hang off (`example.com` for prod, `stage.example.com` for
-   stage). The build inlines it as `NEXT_PUBLIC_ROOT_DOMAIN`.
-2. On that zone, add a wildcard DNS record (`*.example.com`, proxied) and a
-   Workers route `*.example.com/*` (plus `example.com/*`) pointing at the
-   environment's Worker — or, for customer-owned domains, Cloudflare for
-   SaaS custom hostnames with the Worker as the fallback origin.
+`wrangler.jsonc` is committed as the fixture render of
+`wrangler.template.jsonc`, because the deploy lane's `verify-app-structure`
+step checks the config exists before it builds; Checks fails if the two
+disagree.
 
-Provisioning the zone, the records and the route is out of scope here
-(the baseline's `cloudflare-domain` root is the shape when it is wanted).
+## CI
 
-## Deploying
-
-`.github/workflows/checks.yml` runs install, wire, typecheck, lint, test and
-build on every push and pull request. `ci.yml` is the Orun pipeline: set
-`execution.state.workspace` in `intent.yaml` to this product's workspace
-(`orun cloud link`), connect a Cloudflare account to that workspace, and set
-the `ORUN_CI` repository variable to `true`. A merge to `main` then applies
-the KV root, builds the app with that environment's root domain, renders
-`wrangler.jsonc` with the namespace id from the root's wiring document, and
-deploys the Worker to `stage`, then `prod`.
+| Workflow | What it runs | Ships to a product |
+|---|---|---|
+| `checks.yml` | install, wire fixtures (and the committed config is their render), typecheck, lint, test, build — every PR (not pushes: on main, `ci.yml` must be the only run a commit has, because the bootstrap's convergence watch takes the newest one) | yes |
+| `ci.yml` | the Orun pipeline: `orun plan --changed`, then one job per lane; applies the KV namespace, then deploys stage → prod on merge. It plans nothing while `intent.yaml` names the placeholder workspace `ws_CHANGE_ME`, as this repository does | yes |
+| `baseline.yml` | the baseline's own tiers: contract tests, the wiring path, the blueprint read by the pinned orun, the leak gate, the offline bootstrap with the product's own plan, the product built in the job tree, dry-deployed and served — a tenant created and read back through the Worker | no |
+| `tag.yml` | cuts a `baseline-vN` tag (manual) | no |

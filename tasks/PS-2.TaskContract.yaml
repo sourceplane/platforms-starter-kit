@@ -1,5 +1,8 @@
 apiVersion: orun.io/v1
 kind: TaskContract
+metadata:
+  name: PS-2
+  title: "The platform on Workers"
 spec:
   goal: The upstream Platforms Starter Kit runs on Cloudflare Workers + Static Assets with tenants in Workers KV behind the Upstash client's surface, a per-environment rendered wrangler config and green checks
   affects:

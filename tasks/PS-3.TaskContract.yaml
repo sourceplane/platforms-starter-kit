@@ -1,5 +1,8 @@
 apiVersion: orun.io/v1
 kind: TaskContract
+metadata:
+  name: PS-3
+  title: "The KV namespace from Terraform"
 spec:
   goal: The KV namespace per environment is provisioned by Terraform through Orun and the app component binds it from the root's wiring document
   affects:

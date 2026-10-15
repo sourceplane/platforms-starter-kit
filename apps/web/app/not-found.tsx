@@ -4,14 +4,29 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { rootDomain, protocol } from '@/lib/utils';
+import { homeUrl, onRootDomain, siteAddress } from '@/lib/addresses';
 
 export default function NotFound() {
   const [subdomain, setSubdomain] = useState<string | null>(null);
+  // Upstream links the root domain. Off it (workers.dev, before a custom
+  // domain) the landing page is this host's `/` (lib/addresses.ts); the
+  // server render cannot know the host, so it is settled once mounted.
+  const [home, setHome] = useState({
+    href: `${protocol}://${rootDomain}`,
+    label: rootDomain,
+    onRoot: true
+  });
   const pathname = usePathname();
 
   useEffect(() => {
-    // Extract subdomain from URL if we're on a subdomain page
-    if (pathname?.startsWith('/subdomain/')) {
+    const host = window.location.host;
+    setHome({
+      href: homeUrl(host),
+      label: siteAddress(host),
+      onRoot: onRootDomain(host)
+    });
+    // Extract subdomain from URL if we're on a tenant's path page
+    if (pathname?.startsWith('/s/')) {
       const extractedSubdomain = pathname.split('/')[2];
       if (extractedSubdomain) {
         setSubdomain(extractedSubdomain);
@@ -31,10 +46,17 @@ export default function NotFound() {
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-tight text-gray-900">
           {subdomain ? (
-            <>
-              <span className="text-blue-600">{subdomain}</span>.{rootDomain}{' '}
-              doesn't exist
-            </>
+            home.onRoot ? (
+              <>
+                <span className="text-blue-600">{subdomain}</span>.{rootDomain}{' '}
+                doesn't exist
+              </>
+            ) : (
+              <>
+                {home.label}/s/<span className="text-blue-600">{subdomain}</span>{' '}
+                doesn't exist
+              </>
+            )
           ) : (
             'Subdomain Not Found'
           )}
@@ -44,10 +66,10 @@ export default function NotFound() {
         </p>
         <div className="mt-6">
           <Link
-            href={`${protocol}://${rootDomain}`}
+            href={home.href}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
-            {subdomain ? `Create ${subdomain}` : `Go to ${rootDomain}`}
+            {subdomain ? `Create ${subdomain}` : `Go to ${home.label}`}
           </Link>
         </div>
       </div>
