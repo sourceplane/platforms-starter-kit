@@ -71,9 +71,34 @@ the fixture, `apps/web`'s enforced `dependsOn: cloudflare-kv` on main,
 - the status file records what is proven offline and what only a live
   bootstrap (or a custom domain) can prove
 
+## PS5 — the cirrus standard ✅
+
+Bring the baseline to cirrus-baseline's standard, with nothing about the
+product itself changing.
+
+- **No kiox.** `kiox.yaml`/`kiox.lock` pinned an orun (v2.15.0) that nothing
+  ran: every workflow installs orun itself through `orun-action` with its own
+  `version:`. The files, their two modules and the rebrand's skip entry go.
+- **Component docs.** `tooling/catalog/gen-component-docs.py` writes each
+  component's `docs/overview.md`, `docs/architecture.md` and `docs/runbook.md`
+  from what the component declares, as cirrus-baseline's do; the pages ship
+  with the component. Baseline CI runs it with `--check`.
+- **The context pack.** `ai/context/current.md`, `decisions.md` and
+  `open-risks.md` beside the two pages a product ships with — this
+  repository's own, so no module places them.
+- **Status that agrees with the tags.** PS4 is shipped and tagged
+  `baseline-v1`.
+
+**Done when**
+- `git grep -i kiox` finds nothing, and the leak gate and the offline
+  bootstrap pass without the two modules
+- the docs check is green in Baseline CI
+- this file, the status file and `epic.yaml` agree
+
 ## After PS4 (outside this repository)
 
-1. Cut `baseline-v1` with `tag.yml` from the merged `main`.
+1. Cut `baseline-v1` with `tag.yml` from the merged `main` — done: `baseline-v1`
+   is [#5](https://github.com/sourceplane/platforms-starter-kit/pull/5)'s merge.
 2. Register the row in orun-cloud's `infra/baselines-registry/baselines.yaml`
    (unlisted) with the card vendored at the tag.
 3. Bootstrap one product from the tag against a workspace; record its
