@@ -21,8 +21,8 @@ a fresh product is whole on workers.dev before any custom domain.
 
 | | |
 |---|---|
-| Latest tag | `baseline-v1` (PS4) |
-| On `main` since | PS5 — the cirrus standard (no kiox, generated component docs, this context pack) |
+| Latest tag | `baseline-v2` (PS5 — the cirrus standard, [#6](https://github.com/sourceplane/platforms-starter-kit/pull/6) and [#7](https://github.com/sourceplane/platforms-starter-kit/pull/7): no kiox, generated component docs, this context pack, and the workers.dev subdomain read from the Cloudflare connection instead of asked) |
+| Before it | `baseline-v1` (PS4) |
 | Proven live | No. Everything short of the platform is proven offline in Baseline CI; a live bootstrap from a tag, and tenant subdomains on a real zone, are still to come (risk PS-K) |
 
 ## Where to read
@@ -37,6 +37,5 @@ a fresh product is whole on workers.dev before any custom domain.
 
 ## Next
 
-1. Bootstrap one product from the next tag against a workspace, and record
+1. Bootstrap one product from `baseline-v2` against a workspace, and record
    its timings (closes PS-K); then the registry row can leave `unlisted`.
-2. Cut the next `baseline-vN` with `tag.yml` so the registry can pin PS5.
