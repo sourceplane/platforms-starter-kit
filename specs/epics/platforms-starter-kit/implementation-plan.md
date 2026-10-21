@@ -88,6 +88,11 @@ product itself changing.
   repository's own, so no module places them.
 - **Status that agrees with the tags.** PS4 is shipped and tagged
   `baseline-v1`.
+- **The subdomain from the Cloudflare connection (PS-7).** The card declares
+  the workers.dev `subdomain` as `from: connection.cloudflare.workersSubdomain`,
+  as cirrus-baseline does since baseline-v23, so the console asks for nothing
+  the connection already knows; `testing/manifest.test.sh` requires the
+  source's provider in `spec.requires.integrations`.
 
 **Done when**
 - nothing outside this milestone's own record names kiox (`git grep -i

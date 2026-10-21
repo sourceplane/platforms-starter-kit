@@ -10,7 +10,7 @@ the code departed from `design.md` or from the upstream template.
 | PS2 — the KV namespace from Terraform | ✅ Shipped | [#3](https://github.com/sourceplane/platforms-starter-kit/pull/3) |
 | PS3 — ready to instantiate | ✅ Shipped | [#4](https://github.com/sourceplane/platforms-starter-kit/pull/4) |
 | PS4 — a baseline, in one landing | ✅ Shipped (offline-proven; no live bootstrap yet, risk PS-K) | [#5](https://github.com/sourceplane/platforms-starter-kit/pull/5) (PS-5), tagged `baseline-v1` |
-| PS5 — the cirrus standard | ✅ Shipped | PS-6 — on `main` after `baseline-v1`, not yet tagged |
+| PS5 — the cirrus standard | ✅ Shipped | [#6](https://github.com/sourceplane/platforms-starter-kit/pull/6) (PS-6), [#7](https://github.com/sourceplane/platforms-starter-kit/pull/7) (PS-7), tagged `baseline-v2` |
 
 ## Departures from the upstream template
 
@@ -151,6 +151,45 @@ Nothing about the product changed. What changed is the baseline around it:
 | how the docs stay true | — | `tooling/catalog/gen-component-docs.py` derives them from the manifest, the Worker config, Terraform, migrations and package scripts; Baseline CI runs it with `--check` | a hand-written copy of a manifest drifts silently |
 | context pack | `operations.md`, `deployment.md` | plus `current.md`, `decisions.md`, `open-risks.md` | cirrus-baseline's shape; the three new pages are this repository's own and no module places them (the leak gate still allows exactly two) |
 | status | PS4 "this PR (PS-5), to be tagged `baseline-v1`"; the epic README's "Shipped as" at #4 | PS4 shipped and tagged `baseline-v1` | the tag existed; the documents had not caught up |
+
+### The subdomain from the Cloudflare connection (PS-7)
+
+`subdomain` — the account's workers.dev subdomain, not a tenant's — was the
+one input an operator typed that the platform could answer itself: it belongs
+to the Cloudflare account the same way its id does, and it has exactly one
+right answer. A typed one could only be wrong, and wrong showed up after
+deploy — in the deploy's smoke (its `DEPLOYED_URL`), the phase probes and the
+console's verify URLs. `blueprint.yaml` now declares
+`from: connection.cloudflare.workersSubdomain`, as cirrus-baseline does since
+baseline-v23: the Cloudflare integration reads the subdomain at connect and on
+its hourly health check, and the bootstrap door fills the input from the
+connection the build is bound to — the same one `CLOUDFLARE_ACCOUNT_ID` and the
+deploy tokens mint from. The console renders no field for it, and an account
+with no workers.dev subdomain is refused at the door with the fix named.
+
+- `testing/manifest.test.sh` takes cirrus-baseline's rule verbatim: the source
+  is accepted, and only when `spec.requires.integrations` lists its provider.
+- `repo-blueprint.yaml` keeps the input and its default; it, `BOOTSTRAP.md`
+  and `docs/phases/README.md` say only a hand-run build passes
+  `--set subdomain`.
+- Nothing a product carries changes: the rename writes the value where it
+  always did (`workersDevSubdomain`, the URLs), and the probes read it as
+  before.
+
+Verified:
+
+- `testing/{manifest,phases,coverage,rebrand,retouch,bootstrap-defer,wire}.test.sh`
+  green; `gen-component-docs.py --check` green (3 components).
+- Mutation: with `cloudflare` dropped from `spec.requires.integrations`,
+  `manifest.test.sh` fails with exactly one finding, naming
+  `inputs[subdomain]`; restored, it passes.
+- `orun new --status` (v2.58.11): `01-product` pending, 91 files.
+  `testing/leak.test.sh` (v2.58.11): 91 files derived; 85 shipped sources name
+  no factory path. `testing/placement.test.sh` (v2.78.4, as `baseline.yml`
+  runs it): 91 tracked files, both landings; the product's own plan applies
+  `cloudflare-kv` (level 0) before it deploys `web` (level 1) on stage and
+  prod; the 02-docs merge plans 0 jobs; `--resume` changes nothing.
+- `orun task check PS-7` complete.
 
 ## Verified (PS5)
 
