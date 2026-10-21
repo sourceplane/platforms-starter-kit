@@ -9,7 +9,8 @@ the code departed from `design.md` or from the upstream template.
 | PS1 — the platform on Workers | ✅ Shipped | [#2](https://github.com/sourceplane/platforms-starter-kit/pull/2) |
 | PS2 — the KV namespace from Terraform | ✅ Shipped | [#3](https://github.com/sourceplane/platforms-starter-kit/pull/3) |
 | PS3 — ready to instantiate | ✅ Shipped | [#4](https://github.com/sourceplane/platforms-starter-kit/pull/4) |
-| PS4 — a baseline, in one landing | ✅ Shipped (offline-proven; no live bootstrap yet, risk PS-K) | this PR (PS-5), to be tagged `baseline-v1` |
+| PS4 — a baseline, in one landing | ✅ Shipped (offline-proven; no live bootstrap yet, risk PS-K) | [#5](https://github.com/sourceplane/platforms-starter-kit/pull/5) (PS-5), tagged `baseline-v1` |
+| PS5 — the cirrus standard | ✅ Shipped | PS-6 — on `main` after `baseline-v1`, not yet tagged |
 
 ## Departures from the upstream template
 
@@ -137,6 +138,43 @@ Vercel", and it ships into every product.
 | the KV root's title comment | "unique to this fork … shares an account with the baseline" | per product slug | it ships into every product |
 | `tooling/wire/render.mjs` | copied the template's header comment | writes a GENERATED banner | the committed render must say it is one |
 | `tasks/PS-1..4` | no `metadata` | `metadata.name` and `title` | `orun work check` (≥ v2.79) refused them |
+
+## The cirrus standard (PS5)
+
+Nothing about the product changed. What changed is the baseline around it:
+
+| What | Before | After | Why |
+|---|---|---|---|
+| orun pin | `kiox.yaml` (v2.15.0) + `kiox.lock`, shipped to every product | gone; orun is pinned where it runs, the `orun-action` `version:` in each workflow | nothing ran the kiox pin, and it disagreed with the lanes (v2.78.4) |
+| `root-kiox`, `root-kiox-lock` modules | in `01-product` | removed (`testing/phases.test.sh` and the rebrand's skip list follow) | a product is placed with 84 − 2 + 9 = 91 files: no kiox, plus the docs below |
+| component docs | none | `apps/web/docs/`, `infra/terraform/cloudflare-kv/docs/`, `tests/web/docs/` — `overview.md`, `architecture.md`, `runbook.md` | cirrus-baseline documents every component; the workspace Docs library renders `docs/` beside each `component.yaml` |
+| how the docs stay true | — | `tooling/catalog/gen-component-docs.py` derives them from the manifest, the Worker config, Terraform, migrations and package scripts; Baseline CI runs it with `--check` | a hand-written copy of a manifest drifts silently |
+| context pack | `operations.md`, `deployment.md` | plus `current.md`, `decisions.md`, `open-risks.md` | cirrus-baseline's shape; the three new pages are this repository's own and no module places them (the leak gate still allows exactly two) |
+| status | PS4 "this PR (PS-5), to be tagged `baseline-v1`"; the epic README's "Shipped as" at #4 | PS4 shipped and tagged `baseline-v1` | the tag existed; the documents had not caught up |
+
+## Verified (PS5)
+
+- `testing/{manifest,phases,coverage,rebrand,retouch,bootstrap-defer,wire}.test.sh`
+  green; `gen-component-docs.py --check` green (3 components, 9 pages).
+- `testing/leak.test.sh` (v2.58.11): 91 files derived (84 − 2 kiox + 9 docs
+  pages); 85 shipped sources name no factory path; ai/context still exactly
+  the two declared pages.
+- `testing/placement.test.sh` (v2.78.4, as `baseline.yml` runs it): 91
+  tracked files, both landings, branded, re-tenanted; the product's own
+  `orun plan` for the 01-product merge applies `cloudflare-kv` (level 0)
+  before it deploys `web` (level 1) on stage and prod; a pull request's plan
+  waits on nothing; the 02-docs merge plans 0 jobs; `--resume` changes
+  nothing.
+- `pnpm install --frozen-lockfile`, `wire:fixture` (the committed config is
+  its render), `typecheck`, `lint` (upstream's two `any` warnings), `test`
+  (28 tests, 6 files), `build` green.
+- `testing/e2e.test.sh` (v2.78.4) green: the stage lane's planned steps in a
+  staged job tree, `wrangler dev` over the built Worker, the component's own
+  smoke, and a tenant created, read back by path, by `/admin` and by Host
+  header, and deleted.
+- `terraform fmt -check`, `init -backend=false` and `validate` (1.15.3) on
+  `infra/terraform/cloudflare-kv` green.
+- `orun task check PS-6` complete.
 
 ## Verified (PS4)
 
