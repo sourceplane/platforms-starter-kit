@@ -90,6 +90,18 @@ check "the root domain tenants hang off is the product's domain, not a renamed s
 check "stage's root domain stays one level below it" \
   "$acme" intent.yaml '      BASE_DOMAIN: stage.platforms-starter-kit.example.com' \
   '      BASE_DOMAIN: stage.tenants.acme.dev'
+check "no domain given: the reserved placeholder, for an owner to replace later" \
+  '{"reponame":"acme-tenants","productname":"Acme Tenants","githuborg":"acme-inc","subdomain":"acme"}' \
+  intent.yaml '      BASE_DOMAIN: platforms-starter-kit.example.com' \
+  '      BASE_DOMAIN: acme-tenants.example.com'
+check "…and stage's root domain one level below it" \
+  '{"reponame":"acme-tenants","productname":"Acme Tenants","githuborg":"acme-inc","subdomain":"acme"}' \
+  intent.yaml '      BASE_DOMAIN: stage.platforms-starter-kit.example.com' \
+  '      BASE_DOMAIN: stage.acme-tenants.example.com'
+check "an empty domain is no domain" \
+  '{"reponame":"acme-tenants","productname":"Acme Tenants","productdomain":""}' \
+  intent.yaml '      BASE_DOMAIN: platforms-starter-kit.example.com' \
+  '      BASE_DOMAIN: acme-tenants.example.com'
 check "the wildcard route the owner adds names the product's domain and Worker" \
   "$acme" README.md '`*.platforms-starter-kit.example.com/*` → `platforms-starter-kit-web-prod`' \
   '`*.tenants.acme.dev/*` → `acme-tenants-web-prod`'

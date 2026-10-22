@@ -54,8 +54,9 @@ resolve `*.localhost` to the loopback address); under `preview` it is
 
 Every tenant is a subdomain of the environment's root domain —
 `<tenant>.platforms-starter-kit.example.com` on prod,
-`<tenant>.stage.platforms-starter-kit.example.com` on stage — once that
-domain's wildcard route points at the Worker (below). Until then the site
+`<tenant>.stage.platforms-starter-kit.example.com` on stage, a reserved
+placeholder until you set your own — once that domain's wildcard route
+points at the Worker (below). Until then the site
 answers on its workers.dev address, where a subdomain cannot resolve, so
 there a tenant is a path on the same host: `/s/<tenant>`. The landing form
 says which, creating a tenant redirects to it, and `/admin` links to it. The
@@ -103,8 +104,12 @@ provider-shaped is stored in the repository or in GitHub.
 
 ### Tenant subdomains (a custom domain)
 
-A fresh deployment has no domain of its own. To give every tenant its
-subdomain, on the Cloudflare account the site deploys into:
+A fresh deployment has no domain of its own: its root domain is the
+reserved placeholder `platforms-starter-kit.example.com` (and
+`stage.platforms-starter-kit.example.com` on stage), which can never be
+anyone's zone, so tenants live at `/s/<tenant>` until you replace it. The
+steps below name the placeholder; read your own root domain for it. To give
+every tenant its subdomain, on the Cloudflare account the site deploys into:
 
 1. **The zone.** Add the root domain's zone (`platforms-starter-kit.example.com`,
    or the domain above it) to the account.
@@ -118,11 +123,12 @@ subdomain, on the Cloudflare account the site deploys into:
    `stage.platforms-starter-kit.example.com` and
    `platforms-starter-kit-web-stage` — a second-level wildcard needs an
    Advanced Certificate, because Universal SSL covers one level only.
-4. **`BASE_DOMAIN`**, only if tenants should hang off another domain: it is
-   each environment's `env.BASE_DOMAIN` in `intent.yaml`, inlined at build
-   time. A change there maps to no component, so land it together with a
-   change under `apps/web` (its last line, `# orun: redeploy …`, is a deploy
-   trigger) and the next convergence rebuilds with it.
+4. **`BASE_DOMAIN`.** Replace the placeholder with your root domain in each
+   environment's `env.BASE_DOMAIN` in `intent.yaml` (`stage.<domain>` on
+   stage); it is inlined at build time. A change there maps to no
+   component, so land it together with a change under `apps/web` (its last
+   line, `# orun: redeploy …`, is a deploy trigger) and the next
+   convergence rebuilds with it.
 
 Nothing else changes: requests arriving on the root domain get subdomain
 links, requests on workers.dev keep `/s/<tenant>`. For customer-owned

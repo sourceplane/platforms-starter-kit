@@ -44,25 +44,34 @@ and the product's landing waits for it.
 
 There is no custom-domain phase, and so no tenant subdomains out of the
 bootstrap. A tenant is `<tenant>.<root domain>` (the environment's
-`BASE_DOMAIN`: `productdomain` on prod, `stage.<productdomain>` on stage),
-and that needs a zone, a wildcard DNS record and a Worker route — zone
-permissions the platform's brokered `workers-deploy` token does not carry.
+`BASE_DOMAIN`: `<domain>` on prod, `stage.<domain>` on stage, born as the
+placeholder `<reponame>.example.com` unless a hand-run build passes
+`productdomain`), and that needs a zone, a wildcard DNS record and a Worker
+route — zone permissions the platform's brokered `workers-deploy` token does
+not carry.
 So the bootstrap ends on workers.dev, where the app serves every tenant by
 path, `/s/<tenant>`, deciding per request from the host it was asked on;
 the landing page, creating a tenant and visiting it all work there, and the
 landing's probe and the deploy's smoke check them. Pointing the root
 domain's wildcard route at the Worker is the owner's step after the
-bootstrap — the site's README, "Tenant subdomains", says how — and nothing
-in the repository changes for it unless `BASE_DOMAIN` itself does.
+bootstrap — the site's README, "Tenant subdomains", says how — and the one
+change in the repository is replacing the placeholder in `BASE_DOMAIN`.
 
 ## Inputs
 
 `01-product` takes the site's identity once and writes it into the repo
 (`.rebrand/values.json`); `02-docs` reads it back from the placed tree. But
 the blueprint's **required** inputs — `reponame`, `productname`,
-`productdomain`, `githuborg` — are validated before any phase runs, so they
-must be supplied on every invocation, single-phase ones included. A
-`--values` file is easier than repeating `--set`.
+`githuborg` — are validated before any phase runs, so they must be supplied
+on every invocation, single-phase ones included. A `--values` file is easier
+than repeating `--set`.
+
+- `productdomain` — NOT ASKED, default empty. The site goes live on
+  workers.dev, tenants at `/s/<tenant>`; empty brands the reserved
+  placeholder `<reponame>.example.com` into `BASE_DOMAIN`
+  (`stage.<reponame>.example.com` on stage), for an owner to replace when
+  they attach a root domain (the site's README, "Tenant subdomains"). Pass
+  it only for a site that already has its domain.
 
 - `subdomain` — the workers.dev subdomain of the Cloudflare account you
   deploy into. It is in every URL the phases probe. A console or

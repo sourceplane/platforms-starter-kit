@@ -183,7 +183,8 @@ grep -q '"5ca1ab1e5ca1ab1e5ca1ab1e0000a001"' "$work/apps/web/wrangler.jsonc" \
 grep -Eq 'env\.KV\b' "$scratch/deploy-dry-run.log" && grep -q '5ca1ab1e5ca1ab1e5ca1ab1e0000a001' "$scratch/deploy-dry-run.log" \
   || { echo "FAIL: the dry run does not bind KV to the stage namespace" >&2; tail -20 "$scratch/deploy-dry-run.log" >&2; exit 1; }
 # The build inlined the stage root domain (the job's BASE_DOMAIN, from intent.yaml).
-domain="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['productdomain'])" "$values")"
+# The fixture carries no domain, so it is the placeholder <reponame>.example.com.
+domain="$(python3 -c "import json,sys;v=json.load(open(sys.argv[1]));print((v.get('productdomain') or '').strip() or v['reponame']+'.example.com')" "$values")"
 grep -rqF "stage.$domain" "$work/apps/web/.open-next/server-functions" \
   || { echo "FAIL: the stage build did not inline its root domain stage.$domain" >&2; exit 1; }
 echo "   the built config binds KV to the stage document's namespace id, and the build carries"
@@ -211,7 +212,8 @@ echo "   ▸ every route the site promises: create a tenant, and read it back th
 python3 - "$url" "$values" <<'PY'
 import html, json, re, sys, urllib.error, urllib.parse, urllib.request, uuid
 base, values = sys.argv[1], json.load(open(sys.argv[2]))
-name, domain = values["productname"], values["productdomain"]
+name = values["productname"]
+domain = (values.get("productdomain") or "").strip() or f'{values["reponame"]}.example.com'   # none given: the placeholder
 host = urllib.parse.urlsplit(base).netloc          # 127.0.0.1:<port> — off the root domain, like workers.dev
 port = urllib.parse.urlsplit(base).port
 root = f"stage.{domain}"                           # the stage build's BASE_DOMAIN

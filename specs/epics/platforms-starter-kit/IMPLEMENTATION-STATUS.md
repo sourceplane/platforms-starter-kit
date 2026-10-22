@@ -11,6 +11,7 @@ the code departed from `design.md` or from the upstream template.
 | PS3 — ready to instantiate | ✅ Shipped | [#4](https://github.com/sourceplane/platforms-starter-kit/pull/4) |
 | PS4 — a baseline, in one landing | ✅ Shipped (offline-proven; no live bootstrap yet, risk PS-K) | [#5](https://github.com/sourceplane/platforms-starter-kit/pull/5) (PS-5), tagged `baseline-v1` |
 | PS5 — the cirrus standard | ✅ Shipped | [#6](https://github.com/sourceplane/platforms-starter-kit/pull/6) (PS-6), [#7](https://github.com/sourceplane/platforms-starter-kit/pull/7) (PS-7), tagged `baseline-v2` |
+| PS6 — the domain is set later | ✅ Shipped | [#8](https://github.com/sourceplane/platforms-starter-kit/pull/8) (PS-8), tagged `baseline-v3` |
 
 ## Departures from the upstream template
 
@@ -190,6 +191,83 @@ Verified:
   `cloudflare-kv` (level 0) before it deploys `web` (level 1) on stage and
   prod; the 02-docs merge plans 0 jobs; `--resume` changes nothing.
 - `orun task check PS-7` complete.
+
+## The domain is set later (PS6, PS-8)
+
+The console asked for the tenant root domain, with help text that said it
+did not need to exist — and nothing in the build needed one: the site
+answers on workers.dev from its first deploy, where tenants are paths
+(`/s/<tenant>`); the smoke and the phase probes read workers.dev; and
+`02-docs`'s deployment record names the root domains without probing them.
+Attaching a root domain (zone, wildcard DNS, Worker route) is an owner's
+step after the bootstrap (README, "Tenant subdomains"), so the form no
+longer asks for it.
+
+The root domain still goes where it went: `BASE_DOMAIN` in `intent.yaml`
+(dev and prod; `stage.<domain>` on stage), inlined by the build as
+`NEXT_PUBLIC_ROOT_DOMAIN`, which `proxy.ts` and `lib/addresses.ts` route by
+and the landing page, the subdomain form, `/admin` and the not-found page
+name. A site built without a domain carries the reserved placeholder
+`<reponame>.example.com` in all of them, so tenants stay at `/s/<tenant>`
+until an owner replaces that one string.
+
+- `blueprint.yaml` declares no `productdomain` input; the console asks for
+  the site's name alone.
+- `repo-blueprint.yaml`'s `productdomain` is optional, default empty. Nothing
+  else in the build reads it — no hook, probe or `when:` (the deployment
+  record's hook reads `BASE_DOMAIN` from the tree and does not probe it) — so
+  an empty value is harmless; `.rebrand/values.json` records `""`. A hand-run
+  build may still pass `--set productdomain=` for a site that already has
+  its domain.
+- `rebrand.mjs` no longer requires it. Empty, it brands the reserved
+  placeholder `<reponame>.example.com` (RFC 2606 — never someone else's
+  domain) where the root domain goes, `stage.<reponame>.example.com` on
+  stage.
+- The product README's "Tenant subdomains" said to change `BASE_DOMAIN`
+  "only if tenants should hang off another domain"; a site is now born with
+  a placeholder no one can own, so replacing it is a step of its own, and
+  "Where tenants live" and `ai/context/operations.md` call it a placeholder.
+- `testing/fixtures/acme.json` carries no domain, so the leak gate, the
+  offline bootstrap and the e2e tier exercise exactly what a console build
+  supplies. `testing/placement.test.sh` and `testing/e2e.test.sh` read the
+  fixture's `productdomain` to assert `BASE_DOMAIN` and to address tenants on
+  the stage root; on the domain-less fixture both raised
+  `KeyError: 'productdomain'`, so they now expect the placeholder when the
+  fixture gives none. `testing/rebrand.test.sh` pins the placeholder for an
+  absent domain (prod and stage) and an empty one; `baseline.yml`'s
+  blueprint read sets no domain.
+
+Nothing that needs a domain was removed — it waits for one.
+
+Verified:
+
+- `testing/{manifest,phases,coverage,rebrand,retouch,bootstrap-defer,wire}.test.sh`
+  green (rebrand: with the previous `rebrand.mjs` the three new checks fail;
+  restored, they pass); `gen-component-docs.py --check` green (3 components).
+- At v2.58.11 (the blueprint job's first pin): `orun new --status` with no
+  `productdomain` reads the document (`01-product` pending, 91 files);
+  `testing/leak.test.sh` 91 files derived; 85 shipped sources name no
+  factory path.
+- At v2.78.4 (as `baseline.yml` runs placement): `testing/placement.test.sh`
+  91 tracked files, both landings, `BASE_DOMAIN` the placeholder
+  (`acme-platforms.example.com`, stage `stage.acme-platforms.example.com`) in
+  the intent and in each `web` job; `cloudflare-kv` applied at level 0
+  before `web` deploys at level 1 on stage and prod; the 02-docs merge plans
+  0 jobs; `--resume` changes nothing. The previous `placement.test.sh` on the
+  new fixture fails with `KeyError: 'productdomain'` (twice).
+- At v2.78.4 (the site job's pin): `testing/e2e.test.sh` green on the
+  domain-less fixture — the 01-product landing passes the Checks sequence;
+  the stage lane's `build-app` inlines `stage.acme-platforms.example.com`
+  and `deploy-dry-run` binds `KV` to the stage document's id; `wrangler dev`
+  serves the built Worker and its own smoke passes; a tenant created by the
+  landing form is read back on `/s/acme-e2e` and `/admin`, refused as a
+  duplicate, served as `acme-e2e.stage.acme-platforms.example.com` by Host
+  header, kept off `/admin` on its host, and deleted again.
+- The offline bootstrap of the fixture leaves `.rebrand/values.json`
+  `productdomain` empty and the placeholder in all three environments'
+  `BASE_DOMAIN`, the README's tenant and route examples, `operations.md` and
+  the rendered `deployment.md`; no line names `platforms-starter-kit.example.com`.
+- `orun task check PS-8` complete.
 
 ## Verified (PS5)
 

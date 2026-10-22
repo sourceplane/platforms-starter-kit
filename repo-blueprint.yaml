@@ -35,13 +35,19 @@ inputs:
     description: The site's display name (e.g. "Acme Tenants") — every page's title, and above the landing page's heading.
   productdomain:
     type: string
-    required: true
+    default: ""
     description: >-
-      The root domain tenants become subdomains of (e.g. tenants.acme.dev) —
-      prod's BASE_DOMAIN, and stage's as stage.<domain>, inlined into the
-      build. It does not need to exist: the site answers on workers.dev from
-      its first deploy, tenants at /s/<tenant>, until the owner points the
-      domain's wildcard route at the Worker.
+      The root domain tenants become subdomains of, once the site has one
+      (e.g. tenants.acme.dev). NOT ASKED: the site answers on workers.dev from
+      its first deploy, tenants at /s/<tenant>, and attaching a root domain
+      is an owner's step after it. Empty, the rebrand writes the reserved
+      placeholder `<reponame>.example.com` where the root domain goes —
+      prod's and dev's BASE_DOMAIN in intent.yaml, stage's as
+      stage.<reponame>.example.com, inlined into the build as
+      NEXT_PUBLIC_ROOT_DOMAIN (the landing page, the subdomain form, /admin and
+      the not-found page name it) — so setting it later is replacing that one
+      string; the site's README, "Tenant subdomains", says how. Pass it with
+      --set only to brand a hand-run build with a domain it already has.
   githuborg:
     type: string
     pattern: "^[A-Za-z0-9][A-Za-z0-9-]*$"
