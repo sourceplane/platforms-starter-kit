@@ -26,7 +26,7 @@ for the design, the milestones and the as-built status.
 git clone --depth 1 --branch <baseline-tag> https://github.com/sourceplane/platforms-starter-kit
 cd platforms-starter-kit
 orun new --blueprint repo-blueprint.yaml --out ~/sites/acme-tenants --run-hooks --resume \
-  --set reponame=acme-tenants --set productname="Acme Tenants" --set productdomain=tenants.acme.dev \
+  --set reponame=acme-tenants --set productname="Acme Tenants" \
   --set githuborg=acme-inc --set subdomain=<workers-dev-subdomain>
 ```
 
@@ -46,10 +46,11 @@ namespace titles and root domain. None of this repository's machinery ships.
 
 It goes live on workers.dev: the landing page, creating a tenant, the
 tenant's page at `/s/<tenant>` and `/admin` all work there. Tenant
-SUBDOMAINS need the product's root domain (`productdomain`) on a Cloudflare
-zone with a wildcard route to the Worker — the owner's step after the
-bootstrap, described in the product's README; nothing in the repository
-changes for it.
+SUBDOMAINS need a root domain on a Cloudflare zone with a wildcard route to
+the Worker — the owner's step after the bootstrap, described in the
+product's README. The console does not ask for it: a product is born with
+the reserved placeholder `<reponame>.example.com` as its root domain
+(`BASE_DOMAIN`), and that step replaces it with the owner's.
 
 | What makes it a baseline | Where |
 |---|---|

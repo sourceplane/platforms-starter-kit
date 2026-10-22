@@ -38,14 +38,16 @@ namespace exists for it (its build renders the committed fixture).
 
 The root domain is each environment's `env.BASE_DOMAIN` in `intent.yaml`
 (`platforms-starter-kit.example.com` on prod,
-`stage.platforms-starter-kit.example.com` on stage), inlined into the build
-as `NEXT_PUBLIC_ROOT_DOMAIN`. A request arriving ON that domain sees tenants
-as subdomains, `<tenant>.<root>`; a request on any other host — the
-workers.dev address, before the domain's wildcard route points at the Worker
-— sees them as paths on that host, `/s/<tenant>`
-(`apps/web/lib/addresses.ts`). Both work against the same build; attaching
-the domain is the owner's step (README, "Tenant subdomains") and changes
-nothing in the repository unless `BASE_DOMAIN` itself changes.
+`stage.platforms-starter-kit.example.com` on stage — the reserved
+placeholder the site was born with, until an owner replaces it with a
+domain of theirs), inlined into the build as `NEXT_PUBLIC_ROOT_DOMAIN`. A
+request arriving ON that domain sees tenants as subdomains,
+`<tenant>.<root>`; a request on any other host — the workers.dev address,
+before the domain's wildcard route points at the Worker — sees them as
+paths on that host, `/s/<tenant>` (`apps/web/lib/addresses.ts`). Both work
+against the same build; attaching the domain is the owner's step (README,
+"Tenant subdomains"), and its one change in the repository is replacing the
+placeholder in `BASE_DOMAIN`.
 
 ## Identity and tenancy
 
@@ -129,7 +131,7 @@ orun integrations list --org <ws> --json && orun cloud check --org <ws>
 | change the app | edit `apps/web/app` (its name: `apps/web/app/site.ts`), merge |
 | deploy a change | merge to `main`; watch the run; failed lanes → `gh run rerun --failed` |
 | redeploy without a change | edit the last line of `apps/web/component.yaml` (`# orun: redeploy <reason> <stamp>`) and merge — it is a deploy trigger, nothing reads it |
-| tenant subdomains | the zone, a wildcard DNS record and a Worker route on the root domain (README, "Tenant subdomains"); nothing in the repository changes |
+| tenant subdomains | the zone, a wildcard DNS record and a Worker route on the root domain (README, "Tenant subdomains"), and the placeholder `platforms-starter-kit.example.com` replaced with it in `env.BASE_DOMAIN` (below) |
 | change the root domain | `env.BASE_DOMAIN` per environment in `intent.yaml`, landed with a change under `apps/web` (it is inlined at build time) |
 | gate `/admin` | Cloudflare Access on `/admin*`; then drop the `/admin` half of the smoke in `apps/web/component.yaml` |
 | list or delete tenants by hand | `wrangler kv key list --namespace-id <id> --prefix subdomain: --remote`, `wrangler kv key delete subdomain:<name> --namespace-id <id> --remote` (the id is in the environment's `WIRING_CLOUDFLARE_KV`) |

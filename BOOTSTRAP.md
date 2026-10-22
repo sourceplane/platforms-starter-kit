@@ -56,7 +56,7 @@ cd platforms-starter-kit
 orun new --blueprint repo-blueprint.yaml \
   --out ~/sites/acme-tenants --run-hooks --resume \
   --set reponame=acme-tenants --set productname="Acme Tenants" \
-  --set productdomain=tenants.acme.dev --set githuborg=acme-inc \
+  --set githuborg=acme-inc \
   --set orunWorkspace=ws_XXXXXXXX \
   --set subdomain=<workers-dev-subdomain>
 ```
@@ -93,9 +93,15 @@ orun new --blueprint repo-blueprint.yaml --out ~/sites/acme-tenants --run-hooks 
 
 `02-docs` reads the identity back from `.rebrand/values.json` in the placed
 tree, but the blueprint's **required** inputs — `reponame`, `productname`,
-`productdomain`, `githuborg` — are validated before anything runs, so pass
-them every time (a `--values` file is easier). The full guide, one page per
-phase: [docs/phases/README.md](docs/phases/README.md).
+`githuborg` — are validated before anything runs, so pass them every time (a
+`--values` file is easier). The domain is not one of them: the site goes live
+on workers.dev, tenants at `/s/<tenant>`, and `productdomain` defaults to
+empty, which brands the reserved placeholder `<reponame>.example.com` into
+`BASE_DOMAIN` (`stage.<reponame>.example.com` on stage) for an owner to
+replace when they attach a root domain (the site's README, "Tenant
+subdomains"). Pass `--set productdomain=` only for a site that already has
+its domain.
+The full guide, one page per phase: [docs/phases/README.md](docs/phases/README.md).
 
 | flag | what it does |
 |---|---|
@@ -165,18 +171,20 @@ orun new --blueprint repo-blueprint.yaml \
   `--components`, the `WIRING_<ROOT>_<ENV>` secretEnv and an enforced
   `dependsOn` on it. `ai/context/operations.md` in the product says the same.
 - **Tenant subdomains (the owner's follow-up)**: the product's root domain
-  is `productdomain` — prod's `BASE_DOMAIN` in its `intent.yaml`, and
-  `stage.<productdomain>` for stage — inlined at build time. Until it is
-  attached the site answers on workers.dev, where
+  is prod's `BASE_DOMAIN` in its `intent.yaml`, and `stage.<domain>` for
+  stage — inlined at build time. A console build asks for none, so it is
+  born as the reserved placeholder `<reponame>.example.com` (a hand-run
+  build may pass `productdomain`). Until a real one is attached the site
+  answers on workers.dev, where
   `<tenant>.<worker>.<sub>.workers.dev` cannot resolve, so tenants are
   served at `/s/<tenant>` on that host (the app decides per request:
   `apps/web/lib/addresses.ts`). To turn on subdomains, on the Cloudflare
   account: add the zone, a proxied wildcard DNS record (`*.<domain>`) and
   the apex, and Worker routes `*.<domain>/*` and `<domain>/*` to
   `<reponame>-web-prod` (stage likewise on `stage.<domain>`, which needs an
-  Advanced Certificate for its second-level wildcard). Only if tenants
-  should hang off another domain, change `BASE_DOMAIN` and land it with a
-  change under `apps/web`. The product's README, "Tenant subdomains", walks
+  Advanced Certificate for its second-level wildcard), and replace the
+  placeholder in `BASE_DOMAIN` with that domain, landed with a change under
+  `apps/web`. The product's README, "Tenant subdomains", walks
   through it. There is no domain phase: routes and DNS need zone
   permissions the brokered `workers-deploy` token does not carry, and a
   zone the build does not have.
@@ -239,7 +247,7 @@ at the tag and refuses the whole catalogue if it 404s.
 | Convergence failed AFTER the PR merged; re-running lands nothing | expected on its own — the files are on main. Re-run the phase (`--phase 01-product`, `--redo 01-product`, or the console's Retry): its `retouch` hook gives the landing a diff and the KV root and the app re-plan |
 | The product's `intent.yaml` says `workspace: ws_SET_ME` | `orunWorkspace` was empty and the build ran outside a workspace; set it and re-run `01-product` |
 | A bootstrap stopped before `02-docs`; prod no longer waits on stage | the gate is deferred, not dropped: run `02-docs`, or `node tooling/bootstrap/promotion.mjs --restore --file <product>/intent.yaml` |
-| `✕ input "productdomain" is required` | all four required inputs must be set on every invocation, single-phase ones included |
+| `✕ input "productname" is required` | all three required inputs (`reponame`, `productname`, `githuborg`) must be set on every invocation, single-phase ones included |
 | `unknown flag: --phase` or a parse error in the blueprint | the CLI is below the v2.58.11 floor |
 | web lane `verify-app-structure` fails on `wrangler.jsonc` | the config is not committed. It is the fixture render of `wrangler.template.jsonc`: `pnpm run wire:fixture` and commit it |
 | web lane `build-app`: `Symlink apps/web/node_modules/next is invalid, it points out of the filesystem root` | the product's intent pins stack-tectonic ≥ 0.20.0, whose lane-scoped install links each job's node_modules out of its tree, which Next 16's Turbopack refuses. Pin 0.19.0 (`intent.yaml` says why) |

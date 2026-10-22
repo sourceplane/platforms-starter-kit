@@ -184,7 +184,9 @@ for env in ("stage", "prod"):
     if intent["environments"][env].get("url") != want:
         bad(f"environments.{env}.url is {intent['environments'][env].get('url')}, not {want}")
 # The root domains tenants hang off: the product's domain, stage one level below.
-domain = values["productdomain"]
+# The fixture carries none (a console build asks for none), so it is the
+# placeholder the rebrand writes, <reponame>.example.com.
+domain = (values.get("productdomain") or "").strip() or f'{values["reponame"]}.example.com'
 for env, want in (("dev", domain), ("stage", f"stage.{domain}"), ("prod", domain)):
     got = (intent["environments"][env].get("env") or {}).get("BASE_DOMAIN")
     if got != want:
@@ -237,7 +239,8 @@ git -C "$tree" checkout -q main
 python3 - "$scratch/plan.json" "$values" <<'PY' || fails=$((fails + 1))
 import json, sys
 plan, values = json.load(open(sys.argv[1])), json.load(open(sys.argv[2]))
-repo, sub, ws, domain = values["reponame"], values["subdomain"], values["orunWorkspace"], values["productdomain"]
+repo, sub, ws = values["reponame"], values["subdomain"], values["orunWorkspace"]
+domain = (values.get("productdomain") or "").strip() or f"{repo}.example.com"   # none given: the placeholder
 problems = []
 def bad(m): problems.append(m)
 jobs = {(j["component"], j["environment"]): j for j in plan["jobs"]}
