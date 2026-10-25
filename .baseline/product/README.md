@@ -11,7 +11,7 @@ environment.
 
 <!-- 02-docs:begin -->
 Not recorded yet. The bootstrap's last phase writes the live URLs, the
-workspace and the secrets inventory into
+workspace and the secrets the site uses into
 [ai/context/deployment.md](ai/context/deployment.md); how the site deploys
 and how to operate it is in
 [ai/context/operations.md](ai/context/operations.md).
@@ -73,8 +73,7 @@ The Worker binds the namespace as `KV`; a tenant is `subdomain:<name>` →
 (placeholder ids) for local work and verification, and on every deploy from
 the document the `cloudflare-kv` Terraform root publishes after its apply
 (`WIRING_CLOUDFLARE_KV`, per environment). Edit the template, then
-`pnpm run wire:fixture`; Checks fails if the committed `wrangler.jsonc` is
-not the fixture render.
+`pnpm run wire:fixture` and commit the render with the template.
 
 KV is eventually consistent across locations: a tenant created in one place
 reads back at once there and within about a minute everywhere else. The
@@ -90,9 +89,11 @@ deploys — to `stage`, then to `prod` once stage has converged on the same
 commit; `dev` only verifies. The Worker is
 `platforms-starter-kit-web-<env>` on your account's workers.dev subdomain,
 and every deploy is smoke-tested over HTTP: `/` must be rendered for the host
-it was asked on, and `/admin` must read the tenant list from KV.
-`checks.yml` runs install, the fixture render, typecheck, lint, test and
-build on every pull request. (A push to `main` runs `ci.yml` alone, which
+it was asked on, and `/admin` must read the tenant list from KV. A pull
+request runs the same pipeline's verify lanes, with nothing applied or
+deployed: the KV namespace planned for stage and prod, and the app built and
+dry-deployed for each environment. They do not run the tests or the linter
+— run those before you push (Getting started, above). (A push to `main`
 applies, builds and deploys.)
 
 The pipeline holds one credential, GitHub's own `GITHUB_TOKEN`. The
