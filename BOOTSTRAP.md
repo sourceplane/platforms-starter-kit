@@ -12,24 +12,27 @@ not separate workflows. The console card the platform renders is
 brokered secrets and the programme, and `testing/manifest.test.sh` holds it
 to what the build document does.
 
-Target wall-clock: **about fourteen minutes** — an estimate summed from the
-phases until a bootstrap measures it: ONE landing whose pull request waits on
-Checks (a full Next.js build), then one convergence — the KV namespace
-applied on stage and prod, then the app built with its id and deployed,
-stage and prod side by side — then a short docs landing that restores the
-promotion gate. Tenant SUBDOMAINS are not part of it: they need the root
-domain's wildcard route, which is the owner's step afterwards (§4).
+Target wall-clock: **about twelve minutes** — an estimate summed from the
+phases (11 + 1) until a bootstrap measures it; no build of this baseline has
+been timed. The shape: the task set-up in the background while ONE landing
+is placed, branded and checked in the box (`orun validate` and `orun plan`,
+no runner waited for), then one convergence — the KV namespace applied on
+stage and prod, then the app built with its id and deployed, stage and prod
+side by side — then a short docs landing that restores the promotion gate.
+Tenant SUBDOMAINS are not part of it: they need the root domain's wildcard
+route, which is the owner's step afterwards (§4).
 
 ## 0. What you need
 
 - GitHub org access (repository creation) and a machine with `git`, `node`
   (≥ 22), `pnpm` (10.12.1), `python3` with PyYAML, `curl`, and the `orun`
-  CLI **≥ v2.58.11** — the floor for RUNNING the bootstrap (the phase overlay,
-  landings that commit per phase and wait on the PR's whole CI run,
-  `githubOwner` on the doctor probe, `environments` on the secrets probe, a
-  probe deferred for a project not yet created, and `from: workspace`). The
-  product's own `ci.yml` pins its lanes separately (v2.78.4), and its plans
-  need that pin: the floor does not apply a `dependsOn` edge's `modeRules`.
+  CLI **≥ v2.88.0** — the floor for RUNNING the bootstrap (the phase overlay,
+  landings that commit per phase, `githubOwner` on the doctor probe, a probe
+  deferred for a project not yet created, `from: workspace`, the deploy
+  credentials minted in one `secrets` reconcile, the task set-up run in the
+  background (`background: true`), and landings checked in the box before
+  they merge (`checks: local`)). The product's own `ci.yml` pins its lanes
+  separately (v2.78.4).
 - A Cloudflare account (the free plan is enough for one Worker with static
   assets and a KV namespace per environment) and its **Account API token**
   with Workers Scripts Write and Workers KV Storage Write (the console's
@@ -82,8 +85,8 @@ phase whose files are present but branded derives as `drifted`, and
 
 | phase | what it lands | verified by |
 |---|---|---|
-| `01-product` | the repository, created and linked; the WHOLE product in one PR — intent, CI, tooling, identity, the KV root, the app and its tests; the brokered Cloudflare secrets | its PR's checks green and merged; the convergence green (KV applied, then the app built, deployed, smoke-tested); `WIRING_CLOUDFLARE_KV` on stage and prod; both workers.dev URLs answering |
-| `02-docs` | `ai/context/deployment.md` from probed facts; prod's promotion gate and dev's push lanes restored | the final probe |
+| `01-product` | the repository, created and linked; the WHOLE product in one PR — intent, CI, tooling, identity, the KV root, the app and its tests; the brokered Cloudflare secrets (the deploy token, the account id) | its commit validated and planned in the box (as the PR and as the merge), then merged; the convergence green (KV applied, then the app — which resolves `WIRING_CLOUDFLARE_KV` — built, deployed, smoke-tested); both workers.dev URLs answering |
+| `02-docs` | `ai/context/deployment.md` from probed facts; prod's promotion gate and dev's push lanes restored | the render's own probes, recorded; the commit checked in the box and merged |
 
 ```bash
 orun new --blueprint repo-blueprint.yaml --out ~/sites/acme-tenants --run-hooks \
@@ -131,8 +134,9 @@ need landings of its own. It does not, because the product's plan holds it:
   environment's apply; on a pull request nothing deploys, so nothing waits.
 - A job resolves its secrets when it STARTS, so `WIRING_CLOUDFLARE_KV_<ENV>`
   is there when the deploy begins.
-- The landing's `await` then asks the platform that the wiring exists on
-  stage and prod (`orun.secrets/exists@v1`) — every later deploy reads it.
+- The deploy resolves the document from the place every later run looks
+  (its `component.yaml` secret refs), so a green convergence already says it
+  is there: a missing one fails its lane. There is no separate check.
 
 `testing/phases.test.sh` fails if a component that reads a wiring document
 does not wait for its publisher this way; `testing/placement.test.sh` plans
@@ -209,9 +213,9 @@ bash testing/e2e.test.sh         # + network for pnpm: the product built in the 
 The offline bootstrap (`testing/lib/bootstrap.sh`) places both phases in
 order and finishes each with the blueprint's OWN `run:` hooks — read out of
 `repo-blueprint.yaml`, not transcribed — so the retouch marker, the rebrand,
-the re-tenant, the deferrals and their restore, the lockfile and the
-deployment record all run exactly as a real bootstrap runs them. Only the
-platform's typed actions (task, repo, link, reconcile, land, watch, secrets,
+the re-tenant, the deferrals and their restore, and the deployment record
+all run exactly as a real bootstrap runs them. Only the platform's typed
+actions (task, repo, link, reconcile, land, watch, secrets,
 probe) are stood in for, a landing becoming a commit. What no offline test
 can do is the platform's half: the namespace applied for real (the KV root
 is held to `terraform validate`), the token minted, the deploy, the probes.
@@ -243,12 +247,14 @@ at the tag and refuses the whole catalogue if it 404s.
 | KV lane or deploy lane: Authentication error (10000) | the connection's token lacks Workers Scripts or KV Storage write; re-issue it, re-connect, re-run `01-product` |
 | KV lane: title already exists (10014) | `adopt.tf` imports a namespace of the same title; restore it if removed. Two products with one `reponame` in one account share titles — pick another `reponame` |
 | web lane fails resolving `WIRING_CLOUDFLARE_KV_<ENV>` | that environment's KV apply failed — read its lane; the web lane waits on it |
-| `wiring` await stops: `WIRING_CLOUDFLARE_KV` missing on stage or prod | the convergence was green but the apply published nothing: the KV component lost its `secretOutputs`, or its lane was not in the plan. Re-run the phase; its retouch marker re-plans the KV root |
+| web lane: `WIRING_CLOUDFLARE_KV` not found | that environment's KV apply published nothing: the KV component lost its `secretOutputs`, or its lane was not in the plan. Re-run the phase; its retouch marker re-plans the KV root |
+| `land` stops: `the landing's own check failed — orun plan for …` | the product's tree does not plan — the line after it is orun's own error (an unknown component type, a composition that does not resolve). Nothing was pushed. Fix the tree (or the baseline) and re-run the phase |
+| `land` waits on CI after all | the product's repository requires a status check on `main` (branch protection or a ruleset), so GitHub refused the early merge; the landing waits for the check as a `checks: ci` landing would, then merges |
 | Convergence failed AFTER the PR merged; re-running lands nothing | expected on its own — the files are on main. Re-run the phase (`--phase 01-product`, `--redo 01-product`, or the console's Retry): its `retouch` hook gives the landing a diff and the KV root and the app re-plan |
 | The product's `intent.yaml` says `workspace: ws_SET_ME` | `orunWorkspace` was empty and the build ran outside a workspace; set it and re-run `01-product` |
 | A bootstrap stopped before `02-docs`; prod no longer waits on stage | the gate is deferred, not dropped: run `02-docs`, or `node tooling/bootstrap/promotion.mjs --restore --file <product>/intent.yaml` |
 | `✕ input "productname" is required` | all three required inputs (`reponame`, `productname`, `githuborg`) must be set on every invocation, single-phase ones included |
-| `unknown flag: --phase` or a parse error in the blueprint | the CLI is below the v2.58.11 floor |
+| `unknown flag: --phase`, `has no parameter "checks"`, `has no parameter "secrets"` or another parse error in the blueprint | the CLI is below the v2.88.0 floor |
 | web lane `verify-app-structure` fails on `wrangler.jsonc` | the config is not committed. It is the fixture render of `wrangler.template.jsonc`: `pnpm run wire:fixture` and commit it |
 | web lane `build-app`: `Symlink apps/web/node_modules/next is invalid, it points out of the filesystem root` | the product's intent pins stack-tectonic ≥ 0.20.0, whose lane-scoped install links each job's node_modules out of its tree, which Next 16's Turbopack refuses. Pin 0.19.0 (`intent.yaml` says why) |
-| the convergence reported green, then `verify` got 404 | a second workflow ran on the push to main and the watch took its run. Only `ci.yml` may run on a push to main (`checks.yml` is pull-request only) |
+| the convergence reported green, then `verify` got 404 | a second workflow ran on the push to main and the watch took its run. Only `ci.yml` may run on a push to main |
