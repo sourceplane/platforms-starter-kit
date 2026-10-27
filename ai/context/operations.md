@@ -132,6 +132,7 @@ orun integrations list --org <ws> --json && orun cloud check --org <ws>
 |---|---|
 | change the app | edit `apps/web/app` (its name: `apps/web/app/site.ts`), merge |
 | deploy a change | merge to `main`; watch the run; failed lanes → `gh run rerun --failed` |
+| deploy by hand | Orunbase's Deploy button, or `gh workflow run ci.yml --ref main -f environment=<env> [-f component=<a,b>]` — the named components (blank: every one) run in that environment as a merge runs them; started off `main` it is refused |
 | redeploy without a change | edit the last line of `apps/web/component.yaml` (`# orun: redeploy <reason> <stamp>`) and merge — it is a deploy trigger, nothing reads it |
 | tenant subdomains | the zone, a wildcard DNS record and a Worker route on the root domain (README, "Tenant subdomains"), and the placeholder `platforms-starter-kit.example.com` replaced with it in `env.BASE_DOMAIN` (below) |
 | change the root domain | `env.BASE_DOMAIN` per environment in `intent.yaml`, landed with a change under `apps/web` (it is inlined at build time) |
